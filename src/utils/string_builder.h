@@ -1,11 +1,11 @@
 #ifndef LUV_STRING_BUILDER_H
 #define LUV_STRING_BUILDER_H
 
-#include <stddef.h>
 #include "memory.h"
+#include <stddef.h>
 
 typedef struct {
-    char* items;
+    char *items;
     size_t count;
     size_t capacity;
 } Luv_String_Builder;

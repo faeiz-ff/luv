@@ -1,6 +1,8 @@
 .clangd
+.clang-format
 nob
 nob.h
+nob.o*
 build/
 misc/
 

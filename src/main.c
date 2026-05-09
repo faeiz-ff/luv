@@ -10,7 +10,7 @@ int main()
 {
     String_Builder sb = {0};
 
-    char buf[1000];
+    char buf[100];
     FILE *file;
     file = fopen("./build/files.txt", "r");
     
@@ -19,7 +19,7 @@ int main()
         return 1;
     }
 
-    while (fgets(buf, 1000, file)) {
+    while (fgets(buf, 100, file)) {
         sb_append_cstr(&sb, buf);
     }
 
