@@ -1,0 +1,20 @@
+def struct (
+    int x, int y
+) Pair
+
+def typ Pair = ( int, int )
+
+fun Pair.max() {
+    ret cmp {
+        own.x >= own.y => own.x
+        else => {
+            ret own.x
+        }
+    }
+}
+
+fun Pair::new(int a, int b) {
+    ret Pair(a, b)
+}
+
+see 1.0 + 100 * 200;

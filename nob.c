@@ -47,6 +47,9 @@ int append_srcs(Nob_Cmd *cmd)
         nob_sb_append_cstr(&sb, buff);
 
         nob_cmd_append(cmd, sb.items);
+        // this leaks memory but whatever its in the build phase
+        // sb.items should've been freed idk how
+        // TODO: learn to fix this
     }
 
     fclose(fptr);
