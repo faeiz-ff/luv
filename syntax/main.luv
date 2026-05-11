@@ -1,20 +1,34 @@
-def struct (
-    int x, int y
-) Pair
 
-def typ Pair = ( int, int )
+def mod pair
+def Order = enum (
+    less, equal, greater
+)
 
-fun Pair.max() {
-    ret cmp {
-        own.x >= own.y => own.x
-        else => {
-            ret own.x
-        }
+def Comparable = trait (
+    fun Order compare(Own, Own)
+)
+
+def TreeMapNode[Comparable K, any V] = struct (
+    opt[TreeMapNode[K, V]] left 
+    opt[TreeMapNode[K, V]] right
+    K key
+    V value
+)
+
+def TreeMap[Comparable K, any V] = opt[TreeMapNode[K, V]]
+
+fun opt[V] TreeMapNode.get(own, K key) {
+    ret cmp key.compare(own.key) {
+        Order:less => own.left?.get(key)
+        Order:greater => own.right?.get(key)
+        Order:equal => own.value
     }
 }
 
-fun Pair::new(int a, int b) {
-    ret Pair(a, b)
+fun opt[V] TreeMap.get(own, K key) {
+    ret own?.tree.get(key)
 }
 
-see 1.0 + 100 * 200;
+def TreeMap.get = fun opt[V](own, K key) {
+    ret own?.tree.get(key)
+}

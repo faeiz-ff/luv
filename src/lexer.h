@@ -6,14 +6,12 @@
 #include <stddef.h>
 
 typedef struct {
-    Luv_Token **items;
-    size_t count;
-    size_t capacity;
-} Luv_Tokens;
-
-typedef struct {
     Luv_String_View code;
-    Luv_Tokens tokens;
+    struct {
+        Luv_Token **items;
+        size_t count;
+        size_t capacity;
+    } tokens;
     size_t line_number;
     char *curr;
     int is_at_end;

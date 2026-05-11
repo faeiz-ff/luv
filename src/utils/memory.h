@@ -45,6 +45,12 @@
         (ptr)->capacity = 0; \
     } while (0)
 
+#define luv_da_deinit(ptr)  \
+    do {                    \
+        free((ptr)->items); \
+        luv_da_init(ptr);   \
+    } while (0)
+
 void *luv_reallocate(void *ptr, size_t newSize);
 
 #ifdef LUV_NO_PREFIX

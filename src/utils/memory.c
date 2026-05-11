@@ -9,5 +9,6 @@ void *luv_reallocate(void *ptr, size_t newSize)
     }
 
     ptr = realloc(ptr, newSize);
+    if (ptr == NULL) exit(1);
     return ptr;
 }

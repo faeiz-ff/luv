@@ -32,6 +32,11 @@ Luv_Token *luv_tok_key_or_id_from(Luv_String_View *sv, size_t line_number)
         type = LUV_TT_TYPE_ID;
         goto skip_check;
     }
+    // } else if (*sv->str == '_') {
+    //     if (sv->count == 1) type = LUV_TT_UNDERSCORE;
+    //     else type = LUV_TT_CONSTANT;
+    //     goto skip_check;
+    // }
 
     switch (sv->count) {
     case 2:
@@ -48,21 +53,35 @@ Luv_Token *luv_tok_key_or_id_from(Luv_String_View *sv, size_t line_number)
         case 'd':
             if (strncmp(sv->str, "def", 3) == 0 && (type = LUV_TT_DEF))
                 break;
-            if (strncmp(sv->str, "dbl", 3) == 0 && (type = LUV_TT_DBL))
-                break;
             break;
         case 'f':
             if (strncmp(sv->str, "fun", 3) == 0 && (type = LUV_TT_FUN))
                 break;
             if (strncmp(sv->str, "for", 3) == 0 && (type = LUV_TT_FOR))
                 break;
+            if (strncmp(sv->str, "flt", 3) == 0 && (type = LUV_TT_FLT))
+                break;
             break;
-        case 'n': strncmp(sv->str, "not", 3) == 0 && (type = LUV_TT_NOT); break;
-        case 's': strncmp(sv->str, "str", 3) == 0 && (type = LUV_TT_STR); break;
+        case 'n':
+            if (strncmp(sv->str, "not", 3) == 0 && (type = LUV_TT_NOT))
+                break;
+            if (strncmp(sv->str, "nil", 3) == 0 && (type = LUV_TT_NIL))
+                break;
+            break;
+        case 's':
+            if (strncmp(sv->str, "str", 3) == 0 && (type = LUV_TT_STR))
+                break;
+            if (strncmp(sv->str, "see", 3) == 0 && (type = LUV_TT_SEE))
+                break;
+            break;
         case 't': strncmp(sv->str, "typ", 3) == 0 && (type = LUV_TT_TYP); break;
+        case 'v': strncmp(sv->str, "var", 3) == 0 && (type = LUV_TT_VAR); break;
         case 'y': strncmp(sv->str, "yes", 3) == 0 && (type = LUV_TT_YES); break;
         }
         break;
+    case 6:
+        if (strncmp(sv->str, "struct", 3) == 0 && (type = LUV_TT_STRUCT))
+            break;
     }
 skip_check:
 
@@ -76,10 +95,14 @@ void luv_print_token_type(Luv_Token_Type type)
     case LUV_TT_EOF: text = "EOF"; break;
 
     case LUV_TT_MINUS: text = "MINUS"; break;
+    case LUV_TT_MINUS_MINUS: text = "MINUS_MINUS"; break;
     case LUV_TT_PLUS: text = "PLUS"; break;
+    case LUV_TT_PLUS_PLUS: text = "PLUS_PLUS"; break;
     case LUV_TT_ASTERISK: text = "ASTERISK"; break;
     case LUV_TT_SOLIDUS: text = "SOLIDUS"; break;
     case LUV_TT_MODULUS: text = "MODULUS"; break;
+    case LUV_TT_AMPERSAND: text = "AMPERSAND"; break;
+    case LUV_TT_PIPE: text = "PIPE"; break;
 
     case LUV_TT_LBRACE: text = "LBRACE"; break;
     case LUV_TT_RBRACE: text = "RBRACE"; break;
@@ -91,22 +114,29 @@ void luv_print_token_type(Luv_Token_Type type)
     case LUV_TT_DOT: text = "DOT"; break;
     case LUV_TT_COMMA: text = "COMMA"; break;
     case LUV_TT_SEMICOLON: text = "SEMICOLON"; break;
+    case LUV_TT_UNDERSCORE: text = "UNDERSCORE"; break;
 
     case LUV_TT_LESS: text = "LESS"; break;
     case LUV_TT_GREATER: text = "GREATER"; break;
     case LUV_TT_EQUAL: text = "EQUAL"; break;
     case LUV_TT_BANG: text = "BANG"; break;
     case LUV_TT_COLON: text = "COLON"; break;
+    case LUV_TT_QUESTION_MARK: text = "QUESTION_MARK"; break;
 
+    case LUV_TT_QUESTION_DOT: text = "QUESTION_DOT"; break;
     case LUV_TT_EQUAL_EQUAL: text = "EQUAL_EQUAL"; break;
     case LUV_TT_ARROW: text = "ARROW"; break;
     case LUV_TT_BANG_EQUAL: text = "BANG_EQUAL"; break;
     case LUV_TT_LESS_EQUAL: text = "LESS_EQUAL"; break;
+    case LUV_TT_LESS_LESS: text = "LESS_LESS"; break;
     case LUV_TT_GREATER_EQUAL: text = "GREATER_EQUAL"; break;
+    case LUV_TT_GREATER_GREATER: text = "GREATER_GREATER"; break;
     case LUV_TT_COLON_COLON: text = "COLON_COLON"; break;
 
     case LUV_TT_INT_LITERAL: text = "INT_LITERAL"; break;
-    case LUV_TT_DOUBLE_LITERAL: text = "DOUBLE_LITERAL"; break;
+    case LUV_TT_FLOAT_LITERAL: text = "FLOAT_LITERAL"; break;
+    case LUV_TT_STRING_LITERAL: text = "STRING_LITERAL"; break;
+
     case LUV_TT_NEWLINE: text = "NEWLINE"; break;
     case LUV_TT_IDENTIFIER: text = "IDENTIFIER"; break;
     case LUV_TT_TYPE_ID: text = "TYPE_ID"; break;
@@ -116,18 +146,23 @@ void luv_print_token_type(Luv_Token_Type type)
 
     case LUV_TT_YES: text = "YES"; break;
     case LUV_TT_NO: text = "NO"; break;
+    case LUV_TT_NIL: text = "NIL"; break;
 
     case LUV_TT_DEF: text = "DEF"; break;
     case LUV_TT_VAR: text = "VAR"; break;
     case LUV_TT_FUN: text = "FUN"; break;
     case LUV_TT_CMP: text = "CMP"; break;
     case LUV_TT_FOR: text = "FOR"; break;
+    case LUV_TT_SEE: text = "SEE"; break;
 
     case LUV_TT_TYP: text = "TYP"; break;
     case LUV_TT_INT: text = "INT"; break;
-    case LUV_TT_DBL: text = "DBL"; break;
+    case LUV_TT_FLT: text = "FLT"; break;
     case LUV_TT_BOL: text = "BOL"; break;
     case LUV_TT_STR: text = "STR"; break;
+
+    case LUV_TT_STRUCT: text = "STRUCT"; break;
+    case LUV_TT_ENUM: text = "ENUM"; break;
 
     case LUV_TT_OR: text = "OR"; break;
 

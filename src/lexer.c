@@ -29,6 +29,11 @@ int is_ascii_letters(char ch)
     return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z');
 }
 
+int is_ascii_alphanumeric(char ch)
+{
+    return is_ascii_numeric(ch) || is_ascii_letters(ch) || ch == '_';
+}
+
 void advance_curr(Luv_Lexer *lexer)
 {
     if ((size_t)lexer->curr - (size_t)lexer->code.str >= lexer->code.count - 1) {
@@ -55,6 +60,38 @@ void skip_whitespace(Luv_Lexer *lexer)
     }
 }
 
+Luv_Token *string(Luv_Lexer *lexer)
+{
+    char *start = lexer->curr;
+    advance_curr(lexer); // first quote
+    while (!lexer->is_at_end && !(*lexer->curr == '\"')) {
+        advance_curr(lexer);
+        if (!lexer->is_at_end && *lexer->curr == '\\') {
+            char *peek = peek_next(lexer);
+            if (peek == NULL)
+                return NULL;
+            if (*peek == '"') {
+                advance_curr(lexer);
+                advance_curr(lexer);
+            }
+        }
+    }
+    advance_curr(lexer); // final quote
+
+    if (lexer->is_at_end)
+        return NULL;
+
+    Luv_String_View lexeme_sv = { 0 };
+    luv_sv_init(&lexeme_sv);
+    luv_sv_from(&lexeme_sv, start, (size_t)lexer->curr - (size_t)start);
+
+    Luv_Token *tok = { 0 };
+    tok = luv_realloc(Luv_Token, tok, 1);
+    luv_tok_from(tok, LUV_TT_STRING_LITERAL, &lexeme_sv, lexer->line_number);
+
+    return tok;
+}
+
 Luv_Token *number(Luv_Lexer *lexer)
 {
     char *start = lexer->curr;
@@ -65,7 +102,7 @@ Luv_Token *number(Luv_Lexer *lexer)
     if (!lexer->is_at_end && *lexer->curr == '.' && peek_next(lexer) != NULL &&
         is_ascii_numeric(*peek_next(lexer))) {
 
-        type = LUV_TT_DOUBLE_LITERAL;
+        type = LUV_TT_FLOAT_LITERAL;
         advance_curr(lexer);
         while (!lexer->is_at_end && is_ascii_numeric(*lexer->curr)) {
             advance_curr(lexer);
@@ -86,7 +123,7 @@ Luv_Token *number(Luv_Lexer *lexer)
 Luv_Token *identifier(Luv_Lexer *lexer)
 {
     char *start = lexer->curr;
-    while (!lexer->is_at_end && is_ascii_letters(*lexer->curr)) {
+    while (!lexer->is_at_end && is_ascii_alphanumeric(*lexer->curr)) {
         advance_curr(lexer);
     }
 
@@ -110,11 +147,35 @@ Luv_Token *get_primitive_token(Luv_Lexer *lexer)
 
     switch (*lexer->curr) {
     case '\0': tt = LUV_TT_EOF; break;
-    case '+': tt = LUV_TT_PLUS; break;
-    case '-': tt = LUV_TT_MINUS; break;
+
+    case '+':
+        tt = LUV_TT_PLUS;
+        peek = peek_next(lexer);
+        if (peek != NULL) {
+            count++;
+            switch (*peek) {
+            case '+': tt = LUV_TT_PLUS_PLUS; break;
+            default: count--; break;
+            }
+        }
+        break;
+    case '-':
+        tt = LUV_TT_MINUS;
+        peek = peek_next(lexer);
+        if (peek != NULL) {
+            count++;
+            switch (*peek) {
+            case '-': tt = LUV_TT_MINUS_MINUS; break;
+            default: count--; break;
+            }
+        }
+        break;
+
     case '*': tt = LUV_TT_ASTERISK; break;
     case '/': tt = LUV_TT_SOLIDUS; break;
     case '%': tt = LUV_TT_MODULUS; break;
+    case '&': tt = LUV_TT_AMPERSAND; break;
+    case '|': tt = LUV_TT_PIPE; break;
     case '{': tt = LUV_TT_LBRACE; break;
     case '}': tt = LUV_TT_RBRACE; break;
     case '(': tt = LUV_TT_LPAREN; break;
@@ -125,6 +186,19 @@ Luv_Token *get_primitive_token(Luv_Lexer *lexer)
     case '.': tt = LUV_TT_DOT; break;
     case ',': tt = LUV_TT_COMMA; break;
     case ';': tt = LUV_TT_SEMICOLON; break;
+    case '_': tt = LUV_TT_UNDERSCORE; break;
+
+    case '?':
+        tt = LUV_TT_QUESTION_MARK;
+        peek = peek_next(lexer);
+        if (peek != NULL) {
+            count++;
+            switch (*peek) {
+            case '.': tt = LUV_TT_QUESTION_DOT; break;
+            default: count--; break;
+            }
+        }
+        break;
 
     case '=':
         tt = LUV_TT_EQUAL;
@@ -134,7 +208,6 @@ Luv_Token *get_primitive_token(Luv_Lexer *lexer)
             switch (*peek) {
             case '=': tt = LUV_TT_EQUAL_EQUAL; break;
             case '>': tt = LUV_TT_ARROW; break;
-
             default: count--; break;
             }
         }
@@ -147,6 +220,7 @@ Luv_Token *get_primitive_token(Luv_Lexer *lexer)
             count++;
             switch (*peek) {
             case '=': tt = LUV_TT_LESS_EQUAL; break;
+            case '<': tt = LUV_TT_LESS_LESS; break;
             default: count--; break;
             }
         }
@@ -159,6 +233,7 @@ Luv_Token *get_primitive_token(Luv_Lexer *lexer)
             count++;
             switch (*peek) {
             case '=': tt = LUV_TT_GREATER_EQUAL; break;
+            case '>': tt = LUV_TT_GREATER_GREATER; break;
             default: count--; break;
             }
         }
@@ -194,7 +269,8 @@ Luv_Token *get_primitive_token(Luv_Lexer *lexer)
         break;
     }
 
-    if (tt == LUV_TT_UNKNOWN) return NULL;
+    if (tt == LUV_TT_UNKNOWN)
+        return NULL;
 
     luv_sv_slice_sv(&lexeme_sv, &lexer->code,
                     (size_t)lexer->curr - (size_t)lexer->code.str, count);
@@ -221,20 +297,27 @@ int luv_lexer_lex(Luv_Lexer *lexer, char *str)
     while (!lexer->is_at_end) {
         skip_whitespace(lexer);
 
-        Luv_Token *tok = {0};
+        Luv_Token *tok = { 0 };
 
         if (is_ascii_letters(*lexer->curr)) {
             tok = identifier(lexer);
         } else if (is_ascii_numeric(*lexer->curr)) {
             tok = number(lexer);
+        } else if (*lexer->curr == '\"') {
+            tok = string(lexer);
+            if (tok == NULL) {
+                printf("[ERROR] Unterminated String from line %zu\n", lexer->line_number);
+                return 1;
+            }
         } else {
             tok = get_primitive_token(lexer);
+            if (tok == NULL) {
+                printf("[ERROR] Invalid char: %c at line %zu\n", *lexer->curr,
+                       lexer->line_number);
+                return 1;
+            }
         }
 
-        if (tok == NULL) {
-            printf("[ERROR] Invalid char: %c at line %zu\n", *lexer->curr, lexer->line_number);
-            return 1;
-        }
         luv_da_append(Luv_Token *, &lexer->tokens, tok);
     }
     return 0;
