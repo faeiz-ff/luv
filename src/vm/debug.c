@@ -5,17 +5,17 @@
 #include <stdint.h>
 #include <stdio.h>
 
-static size_t simple_instruction(const char *name, size_t offset)
+size_t simple_instruction(const char *name, size_t offset)
 {
     printf("%s\n", name);
     return offset + 1;
 }
 
-static size_t constant_instruction(const char *name, Luv_Chunk *chunk, size_t offset)
+size_t constant_instruction(const char *name, Luv_Chunk *chunk, size_t offset)
 {
     size_t constant_index = chunk->items[offset + 1];
     printf("%-16s %4zu '", name, constant_index);
-    luv_value_print(chunk->values.items[constant_index]);
+    luv_value_print(chunk->constants.items[constant_index]);
     printf("'\n");
     return offset + 2;
 }

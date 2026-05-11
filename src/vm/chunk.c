@@ -8,20 +8,20 @@ void luv_chunk_init(Luv_Chunk *chunk)
 {
     luv_da_init(chunk);
     luv_rle_init(&chunk->lines);
-    luv_value_init(&chunk->values);
+    luv_value_init(&chunk->constants);
 }
 
 void luv_chunk_deinit(Luv_Chunk *chunk)
 {
-    luv_value_deinit(&chunk->values);
+    luv_value_deinit(&chunk->constants);
     luv_rle_deinit(&chunk->lines);
     luv_da_deinit(chunk);
 }
 
 size_t luv_chunk_add_constant(Luv_Chunk *chunk, Luv_Value value)
 {
-    luv_value_append(&chunk->values, value);
-    return chunk->values.count - 1;
+    luv_value_append(&chunk->constants, value);
+    return chunk->constants.count - 1;
 }
 
 void luv_chunk_write(Luv_Chunk *chunk, uint8_t byte, size_t line)

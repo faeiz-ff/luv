@@ -16,7 +16,7 @@ typedef struct {
     size_t count;
     size_t capacity;
     Luv_RLE lines;
-    Luv_Values values;
+    Luv_Values constants;
 } Luv_Chunk;
 
 void luv_chunk_init(Luv_Chunk *chunk);
