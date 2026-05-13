@@ -9,6 +9,10 @@
 typedef enum {
     LUV_OP_CONSTANT,
     LUV_OP_CONSTANT_LONG,
+    LUV_OP_NEGATE,
+    LUV_OP_ADD,
+    LUV_OP_MULTIPLY,
+    LUV_OP_DIVIDE,
     LUV_OP_RETURN,
 } LuvOpCode;
 

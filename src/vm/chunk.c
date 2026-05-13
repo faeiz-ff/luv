@@ -8,14 +8,14 @@
 void luv_chunk_init(LuvChunk *chunk)
 {
     luv_da_init(chunk);
-    luv_rle_init(&chunk->lines);
-    luv_value_init(&chunk->constants);
+    luv_da_init(&chunk->lines);
+    luv_da_init(&chunk->constants);
 }
 
 void luv_chunk_deinit(LuvChunk *chunk)
 {
-    luv_value_deinit(&chunk->constants);
-    luv_rle_deinit(&chunk->lines);
+    luv_da_deinit(&chunk->constants);
+    luv_da_deinit(&chunk->lines);
     luv_da_deinit(chunk);
 }
 
@@ -34,7 +34,7 @@ void luv_chunk_write(LuvChunk *chunk, uint8_t byte, size_t line)
 void luv_chunk_write_constant(LuvChunk *chunk, LuvValue value, size_t line)
 {
     size_t index = luv_chunk_add_constant(chunk, value);
-    if (chunk->constants.count > 256) {
+    if (chunk->constants.count > 255) {
         luv_chunk_write(chunk, LUV_OP_CONSTANT_LONG, line);
 
         uint8_t byte0, byte1, byte2;
@@ -47,7 +47,6 @@ void luv_chunk_write_constant(LuvChunk *chunk, LuvValue value, size_t line)
         luv_chunk_write(chunk, byte2, line);
         luv_chunk_write(chunk, byte1, line);
         luv_chunk_write(chunk, byte0, line);
-              
     } else {
         luv_chunk_write(chunk, LUV_OP_CONSTANT, line);
         luv_chunk_write(chunk, index, line);

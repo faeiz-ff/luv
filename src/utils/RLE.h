@@ -14,10 +14,6 @@ typedef struct {
     size_t capacity;
 } LuvRLE;
 
-
-#define luv_rle_init luv_da_init
-#define luv_rle_deinit luv_da_init
-
 void luv_rle_append(LuvRLE *rle, size_t thing);
 size_t luv_rle_get(LuvRLE *rle, size_t index);
 

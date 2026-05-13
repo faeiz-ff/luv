@@ -10,9 +10,6 @@ typedef struct {
     size_t capacity;
 } LuvStringBuilder;
 
-#define luv_sb_deinit luv_da_deinit
-#define luv_sb_init luv_da_init
-
 #define luv_sb_append_cstr(sb, text) \
     luv_da_append_many(char, sb, text, strlen(text))
 

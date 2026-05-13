@@ -14,8 +14,6 @@ typedef struct {
 
 void luv_value_print(LuvValue value);
 
-#define luv_value_init luv_da_init
-#define luv_value_deinit luv_da_deinit
 #define luv_value_append(ptr, thing) luv_da_append(LuvValue, ptr, thing)
 
 #endif
