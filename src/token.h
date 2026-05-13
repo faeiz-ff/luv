@@ -39,17 +39,17 @@ typedef enum {
     LUV_TT_NOT, LUV_TT_AND, LUV_TT_OR, LUV_TT_NO, 
     LUV_TT_NIL, LUV_TT_STRUCT, LUV_TT_ENUM,
 
-} Luv_Token_Type;
+} LuvTokenType;
 
 typedef struct {
-    Luv_String_View lexeme;
+    LuvStringView lexeme;
     size_t line_number;
-    Luv_Token_Type type;
-} Luv_Token;
+    LuvTokenType type;
+} LuvToken;
 
-void luv_tok_from(Luv_Token *tok, Luv_Token_Type type, Luv_String_View *sv, size_t line_number);
-void luv_print_token_type(Luv_Token_Type type);
-void luv_print_token(Luv_Token *tok);
-Luv_Token *luv_tok_key_or_id_from(Luv_String_View *sv, size_t line_number);
+void luv_tok_from(LuvToken *tok, LuvTokenType type, LuvStringView *sv, size_t line_number);
+void luv_print_token_type(LuvTokenType type);
+void luv_print_token(LuvToken *tok);
+LuvToken *luv_tok_key_or_id_from(LuvStringView *sv, size_t line_number);
 
 #endif

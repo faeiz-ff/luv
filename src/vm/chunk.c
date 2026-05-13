@@ -5,33 +5,33 @@
 #include <stddef.h>
 #include <stdint.h>
 
-void luv_chunk_init(Luv_Chunk *chunk)
+void luv_chunk_init(LuvChunk *chunk)
 {
     luv_da_init(chunk);
     luv_rle_init(&chunk->lines);
     luv_value_init(&chunk->constants);
 }
 
-void luv_chunk_deinit(Luv_Chunk *chunk)
+void luv_chunk_deinit(LuvChunk *chunk)
 {
     luv_value_deinit(&chunk->constants);
     luv_rle_deinit(&chunk->lines);
     luv_da_deinit(chunk);
 }
 
-size_t luv_chunk_add_constant(Luv_Chunk *chunk, Luv_Value value)
+size_t luv_chunk_add_constant(LuvChunk *chunk, LuvValue value)
 {
     luv_value_append(&chunk->constants, value);
     return chunk->constants.count - 1;
 }
 
-void luv_chunk_write(Luv_Chunk *chunk, uint8_t byte, size_t line)
+void luv_chunk_write(LuvChunk *chunk, uint8_t byte, size_t line)
 {
     luv_da_append(uint8_t, chunk, byte);
     luv_rle_append(&chunk->lines, line);
 }
 
-void luv_chunk_write_constant(Luv_Chunk *chunk, Luv_Value value, size_t line)
+void luv_chunk_write_constant(LuvChunk *chunk, LuvValue value, size_t line)
 {
     size_t index = luv_chunk_add_constant(chunk, value);
     if (chunk->constants.count > 256) {

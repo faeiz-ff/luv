@@ -5,9 +5,9 @@
 #include <stddef.h>
 #include <stdio.h>
 
-void luv_lexer_init(Luv_Lexer *lexer)
+void luv_lexer_init(LuvLexer *lexer)
 {
-    lexer->code = (Luv_String_View){ 0 };
+    lexer->code = (LuvStringView){ 0 };
     lexer->curr = NULL;
     lexer->line_number = 1;
     lexer->is_at_end = 0;
@@ -34,7 +34,7 @@ int is_ascii_alphanumeric(char ch)
     return is_ascii_numeric(ch) || is_ascii_letters(ch) || ch == '_';
 }
 
-void advance_curr(Luv_Lexer *lexer)
+void advance_curr(LuvLexer *lexer)
 {
     if ((size_t)lexer->curr - (size_t)lexer->code.str >= lexer->code.count - 1) {
         lexer->is_at_end = 1;
@@ -44,7 +44,7 @@ void advance_curr(Luv_Lexer *lexer)
     }
 }
 
-char *peek_next(Luv_Lexer *lexer)
+char *peek_next(LuvLexer *lexer)
 {
     if ((size_t)lexer->curr - (size_t)lexer->code.str >= lexer->code.count - 1) {
         return NULL;
@@ -53,14 +53,14 @@ char *peek_next(Luv_Lexer *lexer)
     }
 }
 
-void skip_whitespace(Luv_Lexer *lexer)
+void skip_whitespace(LuvLexer *lexer)
 {
     while (!lexer->is_at_end && is_ascii_whitespace(*lexer->curr)) {
         advance_curr(lexer);
     }
 }
 
-Luv_Token *string(Luv_Lexer *lexer)
+LuvToken *string(LuvLexer *lexer)
 {
     char *start = lexer->curr;
     advance_curr(lexer); // first quote
@@ -81,21 +81,21 @@ Luv_Token *string(Luv_Lexer *lexer)
     if (lexer->is_at_end)
         return NULL;
 
-    Luv_String_View lexeme_sv = { 0 };
+    LuvStringView lexeme_sv = { 0 };
     luv_sv_init(&lexeme_sv);
     luv_sv_from(&lexeme_sv, start, (size_t)lexer->curr - (size_t)start);
 
-    Luv_Token *tok = { 0 };
-    tok = luv_realloc(Luv_Token, tok, 1);
+    LuvToken *tok = { 0 };
+    tok = luv_realloc(LuvToken, tok, 1);
     luv_tok_from(tok, LUV_TT_STRING_LITERAL, &lexeme_sv, lexer->line_number);
 
     return tok;
 }
 
-Luv_Token *number(Luv_Lexer *lexer)
+LuvToken *number(LuvLexer *lexer)
 {
     char *start = lexer->curr;
-    Luv_Token_Type type = LUV_TT_INT_LITERAL;
+    LuvTokenType type = LUV_TT_INT_LITERAL;
     while (!lexer->is_at_end && is_ascii_numeric(*lexer->curr)) {
         advance_curr(lexer);
     }
@@ -109,25 +109,25 @@ Luv_Token *number(Luv_Lexer *lexer)
         }
     }
 
-    Luv_String_View lexeme_sv = { 0 };
+    LuvStringView lexeme_sv = { 0 };
     luv_sv_init(&lexeme_sv);
     luv_sv_from(&lexeme_sv, start, (size_t)lexer->curr - (size_t)start);
 
-    Luv_Token *tok = { 0 };
-    tok = luv_realloc(Luv_Token, tok, 1);
+    LuvToken *tok = { 0 };
+    tok = luv_realloc(LuvToken, tok, 1);
     luv_tok_from(tok, type, &lexeme_sv, lexer->line_number);
 
     return tok;
 }
 
-Luv_Token *identifier(Luv_Lexer *lexer)
+LuvToken *identifier(LuvLexer *lexer)
 {
     char *start = lexer->curr;
     while (!lexer->is_at_end && is_ascii_alphanumeric(*lexer->curr)) {
         advance_curr(lexer);
     }
 
-    Luv_String_View lexeme_sv = { 0 };
+    LuvStringView lexeme_sv = { 0 };
     luv_sv_init(&lexeme_sv);
 
     luv_sv_from(&lexeme_sv, start, (size_t)lexer->curr - (size_t)start);
@@ -135,11 +135,11 @@ Luv_Token *identifier(Luv_Lexer *lexer)
     return luv_tok_key_or_id_from(&lexeme_sv, lexer->line_number);
 }
 
-Luv_Token *get_primitive_token(Luv_Lexer *lexer)
+LuvToken *get_primitive_token(LuvLexer *lexer)
 {
-    Luv_Token_Type tt = LUV_TT_UNKNOWN;
+    LuvTokenType tt = LUV_TT_UNKNOWN;
 
-    Luv_String_View lexeme_sv = { 0 };
+    LuvStringView lexeme_sv = { 0 };
     luv_sv_init(&lexeme_sv);
     size_t count = 1;
 
@@ -278,18 +278,18 @@ Luv_Token *get_primitive_token(Luv_Lexer *lexer)
     for (size_t i = 0; i < count; i++)
         advance_curr(lexer);
 
-    Luv_Token *tok = NULL;
-    tok = luv_realloc(Luv_Token, tok, 1);
+    LuvToken *tok = NULL;
+    tok = luv_realloc(LuvToken, tok, 1);
     luv_tok_from(tok, tt, &lexeme_sv,
                  lexer->line_number + (tt == LUV_TT_NEWLINE ? -1 : 0));
 
     return tok;
 }
 
-int luv_lexer_lex(Luv_Lexer *lexer, char *str)
+int luv_lexer_lex(LuvLexer *lexer, char *str)
 {
     luv_lexer_init(lexer);
-    Luv_String_View sv = { 0 };
+    LuvStringView sv = { 0 };
     luv_sv_from_cstr(&sv, str);
     lexer->code = sv;
     lexer->curr = sv.str;
@@ -297,7 +297,7 @@ int luv_lexer_lex(Luv_Lexer *lexer, char *str)
     while (!lexer->is_at_end) {
         skip_whitespace(lexer);
 
-        Luv_Token *tok = { 0 };
+        LuvToken *tok = { 0 };
 
         if (is_ascii_letters(*lexer->curr)) {
             tok = identifier(lexer);
@@ -318,18 +318,18 @@ int luv_lexer_lex(Luv_Lexer *lexer, char *str)
             }
         }
 
-        luv_da_append(Luv_Token *, &lexer->tokens, tok);
+        luv_da_append(LuvToken *, &lexer->tokens, tok);
     }
     return 0;
 }
 
-void luv_lexer_deinit(Luv_Lexer *lexer)
+void luv_lexer_deinit(LuvLexer *lexer)
 {
     for (size_t i = 0; i < lexer->tokens.count; i++) {
         free(lexer->tokens.items[i]); // freeing the token individually
     }
 
     // freeing the dynamic array to hold the token
-    lexer->tokens.items = luv_realloc(Luv_Token *, lexer->tokens.items, 0);
+    lexer->tokens.items = luv_realloc(LuvToken *, lexer->tokens.items, 0);
     luv_lexer_init(lexer);
 }

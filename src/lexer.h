@@ -6,19 +6,19 @@
 #include <stddef.h>
 
 typedef struct {
-    Luv_String_View code;
+    LuvStringView code;
     struct {
-        Luv_Token **items;
+        LuvToken **items;
         size_t count;
         size_t capacity;
     } tokens;
     size_t line_number;
     char *curr;
     int is_at_end;
-} Luv_Lexer;
+} LuvLexer;
 
-void luv_lexer_init(Luv_Lexer *lexer);
-int luv_lexer_lex(Luv_Lexer *lexer, char *str);
-void luv_lexer_deinit(Luv_Lexer *lexer);
+void luv_lexer_init(LuvLexer *lexer);
+int luv_lexer_lex(LuvLexer *lexer, char *str);
+void luv_lexer_deinit(LuvLexer *lexer);
 
 #endif

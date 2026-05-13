@@ -4,18 +4,18 @@
 #include <stdint.h>
 #include <stdio.h>
 
-void luv_vm_init(Luv_VM *vm)
+void luv_vm_init(LuvVM *vm)
 {
     vm->chunk = NULL;
     vm->ip = NULL;
 }
 
-void luv_vm_deinit(Luv_VM *vm)
+void luv_vm_deinit(LuvVM *vm)
 {
     luv_vm_init(vm);
 }
 
-Luv_Interpret_Result run(Luv_VM *vm)
+LuvInterpretResult run(LuvVM *vm)
 {
 #define READ_BYTE() (*vm->ip++)
 #define READ_CONSTANT() (vm->chunk->constants.items[READ_BYTE()])
@@ -38,7 +38,7 @@ Luv_Interpret_Result run(Luv_VM *vm)
 #undef READ_CONSTANT
 }
 
-Luv_Interpret_Result luv_vm_interpret(Luv_VM *vm, Luv_Chunk *chunk)
+LuvInterpretResult luv_vm_interpret(LuvVM *vm, LuvChunk *chunk)
 {
     vm->chunk = chunk;
     vm->ip = vm->chunk->items;

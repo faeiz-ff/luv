@@ -6,10 +6,10 @@
 int test_vm()
 {
 #define  WRITE_CONSTANT(n) luv_chunk_write_constant(&chunk, n, 1)
-    Luv_VM vm = { 0 };
+    LuvVM vm = { 0 };
     luv_vm_init(&vm);
 
-    Luv_Chunk chunk;
+    LuvChunk chunk;
     luv_chunk_init(&chunk);
 
 

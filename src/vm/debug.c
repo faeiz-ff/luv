@@ -11,7 +11,7 @@ size_t simple_instruction(const char *name, size_t offset)
     return offset + 1;
 }
 
-size_t constant_instruction(const char *name, Luv_Chunk *chunk, size_t offset)
+size_t constant_instruction(const char *name, LuvChunk *chunk, size_t offset)
 {
     size_t constant_index = chunk->items[offset + 1];
     printf("%-16s %4zu '", name, constant_index);
@@ -20,7 +20,7 @@ size_t constant_instruction(const char *name, Luv_Chunk *chunk, size_t offset)
     return offset + 2;
 }
 
-size_t constant_long_instruction(const char *name, Luv_Chunk *chunk, size_t offset)
+size_t constant_long_instruction(const char *name, LuvChunk *chunk, size_t offset)
 {
     size_t constant_index = chunk->items[offset + 1];
     constant_index <<= 8;
@@ -34,7 +34,7 @@ size_t constant_long_instruction(const char *name, Luv_Chunk *chunk, size_t offs
     return offset + 4;
 }
 
-void luv_chunk_dissasemble(Luv_Chunk *chunk, const char *name)
+void luv_chunk_dissasemble(LuvChunk *chunk, const char *name)
 {
     printf("=== %s ===\n", name);
 
@@ -43,7 +43,7 @@ void luv_chunk_dissasemble(Luv_Chunk *chunk, const char *name)
     }
 }
 
-size_t luv_chunk_dissasemble_instruction(Luv_Chunk *chunk, size_t offset)
+size_t luv_chunk_dissasemble_instruction(LuvChunk *chunk, size_t offset)
 {
     printf("%04zu ", offset);
 

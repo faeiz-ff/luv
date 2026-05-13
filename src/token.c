@@ -7,14 +7,14 @@
 #include <stdio.h>
 #include <string.h>
 
-void luv_tok_init(Luv_Token *tok)
+void luv_tok_init(LuvToken *tok)
 {
     tok->type = LUV_TT_EOF;
     tok->line_number = 0;
     luv_sv_init(&tok->lexeme);
 }
 
-void luv_tok_from(Luv_Token *tok, Luv_Token_Type type, Luv_String_View *sv, size_t line_number)
+void luv_tok_from(LuvToken *tok, LuvTokenType type, LuvStringView *sv, size_t line_number)
 {
     tok->type = type;
     tok->line_number = line_number;
@@ -22,11 +22,11 @@ void luv_tok_from(Luv_Token *tok, Luv_Token_Type type, Luv_String_View *sv, size
     luv_sv_from_sv(&tok->lexeme, sv);
 }
 
-Luv_Token *luv_tok_key_or_id_from(Luv_String_View *sv, size_t line_number)
+LuvToken *luv_tok_key_or_id_from(LuvStringView *sv, size_t line_number)
 {
-    Luv_Token *tok = { 0 };
-    tok = luv_realloc(Luv_Token, tok, 1);
-    Luv_Token_Type type = LUV_TT_IDENTIFIER;
+    LuvToken *tok = { 0 };
+    tok = luv_realloc(LuvToken, tok, 1);
+    LuvTokenType type = LUV_TT_IDENTIFIER;
 
     if (isupper(*sv->str)) {
         type = LUV_TT_TYPE_ID;
@@ -88,7 +88,7 @@ skip_check:
     luv_tok_from(tok, type, sv, line_number);
     return tok;
 }
-void luv_print_token_type(Luv_Token_Type type)
+void luv_print_token_type(LuvTokenType type)
 {
     char *text = NULL;
     switch (type) {
@@ -172,7 +172,7 @@ void luv_print_token_type(Luv_Token_Type type)
     printf("%s", text);
 }
 
-void luv_print_token(Luv_Token *tok)
+void luv_print_token(LuvToken *tok)
 {
     if (tok->type == LUV_TT_NEWLINE) {
         printf("\\n");

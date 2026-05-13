@@ -7,18 +7,18 @@
 #include <stdint.h>
 
 typedef struct {
-    Luv_Chunk *chunk;
+    LuvChunk *chunk;
     uint8_t *ip;
-} Luv_VM;
+} LuvVM;
 
 typedef enum {
     LUV_INTERPRET_OK,
     LUV_INTERPRET_COMPILER_ERROR,
     LUV_INTERPRET_RUNTIME_ERROR,
-} Luv_Interpret_Result;
+} LuvInterpretResult;
 
-void luv_vm_init(Luv_VM *vm);
-void luv_vm_deinit(Luv_VM *vm);
-Luv_Interpret_Result luv_vm_interpret(Luv_VM *vm, Luv_Chunk *chunk);
+void luv_vm_init(LuvVM *vm);
+void luv_vm_deinit(LuvVM *vm);
+LuvInterpretResult luv_vm_interpret(LuvVM *vm, LuvChunk *chunk);
 
 #endif

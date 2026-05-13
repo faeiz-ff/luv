@@ -8,7 +8,7 @@ typedef struct {
     char *items;
     size_t count;
     size_t capacity;
-} Luv_String_Builder;
+} LuvStringBuilder;
 
 #define luv_sb_deinit luv_da_deinit
 #define luv_sb_init luv_da_init
@@ -20,7 +20,7 @@ typedef struct {
     luv_da_append(char, sb, '\0')
 
 #ifdef LUV_NO_PREFIX
-#define String_Builder Luv_String_Builder
+#define StringBuilder LuvStringBuilder
 #define sb_deinit luv_sb_deinit
 #define sb_append_cstr luv_sb_append_cstr
 #endif

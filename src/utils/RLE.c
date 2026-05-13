@@ -2,24 +2,24 @@
 #include "memory.h"
 #include <stddef.h>
 
-void luv_rle_append(Luv_RLE *rle, size_t thing)
+void luv_rle_append(LuvRLE *rle, size_t thing)
 {
     if (rle->count == 0) {
-        Luv_RLE_size_t inserted_data = (Luv_RLE_size_t){ .data = thing, .count = 1 };
-        luv_da_append(Luv_RLE_size_t, rle, inserted_data);
+        LuvRLEsize_t inserted_data = (LuvRLEsize_t){ .data = thing, .count = 1 };
+        luv_da_append(LuvRLEsize_t, rle, inserted_data);
         return;
     }
 
-    Luv_RLE_size_t *last_item = &rle->items[rle->count - 1];
+    LuvRLEsize_t *last_item = &rle->items[rle->count - 1];
     if (last_item->data == thing) {
         last_item->count++;
     } else {
-        Luv_RLE_size_t inserted_data = (Luv_RLE_size_t){ .data = thing, .count = 1 };
-        luv_da_append(Luv_RLE_size_t, rle, inserted_data);
+        LuvRLEsize_t inserted_data = (LuvRLEsize_t){ .data = thing, .count = 1 };
+        luv_da_append(LuvRLEsize_t, rle, inserted_data);
     }
 }
 
-size_t luv_rle_get(Luv_RLE *rle, size_t index)
+size_t luv_rle_get(LuvRLE *rle, size_t index)
 {
     if (rle->count == 0)
         return 0;
