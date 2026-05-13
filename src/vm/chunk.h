@@ -8,6 +8,7 @@
 
 typedef enum {
     LUV_OP_CONSTANT,
+    LUV_OP_CONSTANT_LONG,
     LUV_OP_RETURN,
 } Luv_OpCode;
 
@@ -23,5 +24,6 @@ void luv_chunk_init(Luv_Chunk *chunk);
 void luv_chunk_deinit(Luv_Chunk *chunk);
 size_t luv_chunk_add_constant(Luv_Chunk *chunk, Luv_Value value);
 void luv_chunk_write(Luv_Chunk *chunk, uint8_t byte, size_t line);
+void luv_chunk_write_constant(Luv_Chunk *chunk, Luv_Value value, size_t line);
 
 #endif

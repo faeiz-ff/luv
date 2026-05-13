@@ -2,6 +2,7 @@
 #include "chunk.h"
 #include "../utils/memory.h"
 #include "value.h"
+#include <stddef.h>
 #include <stdint.h>
 
 void luv_chunk_init(Luv_Chunk *chunk)
@@ -29,3 +30,27 @@ void luv_chunk_write(Luv_Chunk *chunk, uint8_t byte, size_t line)
     luv_da_append(uint8_t, chunk, byte);
     luv_rle_append(&chunk->lines, line);
 }
+
+void luv_chunk_write_constant(Luv_Chunk *chunk, Luv_Value value, size_t line)
+{
+    size_t index = luv_chunk_add_constant(chunk, value);
+    if (chunk->constants.count > 256) {
+        luv_chunk_write(chunk, LUV_OP_CONSTANT_LONG, line);
+
+        uint8_t byte0, byte1, byte2;
+        byte0 = index & 0xFF;
+        index >>= 8;
+        byte1 = index & 0xFF;
+        index >>= 8;
+        byte2 = index & 0xFF;
+
+        luv_chunk_write(chunk, byte2, line);
+        luv_chunk_write(chunk, byte1, line);
+        luv_chunk_write(chunk, byte0, line);
+              
+    } else {
+        luv_chunk_write(chunk, LUV_OP_CONSTANT, line);
+        luv_chunk_write(chunk, index, line);
+    }
+}
+

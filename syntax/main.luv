@@ -1,34 +1,21 @@
 
-def mod pair
-def Order = enum (
-    less, equal, greater
-)
+typ Fraction {
+    numer: int
+    denom: int
+}
 
-def Comparable = trait (
-    fun Order compare(Own, Own)
-)
-
-def TreeMapNode[Comparable K, any V] = struct (
-    opt[TreeMapNode[K, V]] left 
-    opt[TreeMapNode[K, V]] right
-    K key
-    V value
-)
-
-def TreeMap[Comparable K, any V] = opt[TreeMapNode[K, V]]
-
-fun opt[V] TreeMapNode.get(own, K key) {
-    ret cmp key.compare(own.key) {
-        Order:less => own.left?.get(key)
-        Order:greater => own.right?.get(key)
-        Order:equal => own.value
+fun Fraction::new(int numer, int denom) -> Fraction? {
+    if denom == 0 {
+        ret nil
+    } else {
+        ret Fraction { numer, denom }
     }
 }
 
-fun opt[V] TreeMap.get(own, K key) {
-    ret own?.tree.get(key)
+fun Fraction.toFlt() -> flt {
+    ret numer * 1.0 / denom
 }
 
-def TreeMap.get = fun opt[V](own, K key) {
-    ret own?.tree.get(key)
+fun main() {
+    var f = Fraction::new(1, 2)
 }

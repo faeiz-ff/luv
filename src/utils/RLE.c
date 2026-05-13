@@ -1,4 +1,3 @@
-
 #include "RLE.h"
 #include "memory.h"
 #include <stddef.h>

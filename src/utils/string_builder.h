@@ -16,6 +16,9 @@ typedef struct {
 #define luv_sb_append_cstr(sb, text) \
     luv_da_append_many(char, sb, text, strlen(text))
 
+#define luv_sb_append_null(sb) \
+    luv_da_append(char, sb, '\0')
+
 #ifdef LUV_NO_PREFIX
 #define String_Builder Luv_String_Builder
 #define sb_deinit luv_sb_deinit

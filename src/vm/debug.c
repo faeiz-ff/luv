@@ -20,6 +20,20 @@ size_t constant_instruction(const char *name, Luv_Chunk *chunk, size_t offset)
     return offset + 2;
 }
 
+size_t constant_long_instruction(const char *name, Luv_Chunk *chunk, size_t offset)
+{
+    size_t constant_index = chunk->items[offset + 1];
+    constant_index <<= 8;
+    constant_index += chunk->items[offset + 2];
+    constant_index <<= 8;
+    constant_index += chunk->items[offset + 3];
+    
+    printf("%-16s %4zu '", name, constant_index);
+    luv_value_print(chunk->constants.items[constant_index]);
+    printf("'\n");
+    return offset + 4;
+}
+
 void luv_chunk_dissasemble(Luv_Chunk *chunk, const char *name)
 {
     printf("=== %s ===\n", name);
@@ -47,6 +61,8 @@ size_t luv_chunk_dissasemble_instruction(Luv_Chunk *chunk, size_t offset)
     case LUV_OP_RETURN: return simple_instruction("RETURN", offset);
     case LUV_OP_CONSTANT:
         return constant_instruction("CONSTANT", chunk, offset);
+    case LUV_OP_CONSTANT_LONG:
+        return constant_long_instruction("CONSTANT_LONG", chunk, offset);
     default: printf("Unknown OpCode: %d\n", instruction); return offset + 1;
     }
 }
