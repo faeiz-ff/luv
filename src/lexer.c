@@ -306,15 +306,16 @@ int luv_lexer_lex(LuvLexer *lexer, char *str)
         } else if (*lexer->curr == '\"') {
             tok = string(lexer);
             if (tok == NULL) {
-                printf("[ERROR] Unterminated String from line %zu\n", lexer->line_number);
-                return 1;
+                fprintf(stderr, "[ERROR] Unterminated String from line %zu\n",
+                        lexer->line_number);
+                exit(1);
             }
         } else {
             tok = get_primitive_token(lexer);
             if (tok == NULL) {
-                printf("[ERROR] Invalid char: %c at line %zu\n", *lexer->curr,
+                fprintf(stderr, "[ERROR] Invalid char: %c at line %zu\n", *lexer->curr,
                        lexer->line_number);
-                return 1;
+                exit(1);
             }
         }
 
