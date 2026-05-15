@@ -70,6 +70,10 @@ int main(int argc, char **argv)
 
     nob_cmd_append(&cmd, BUILD_FOLDER "main");
 
+    for (int i = 1; i < argc; i++) {
+        nob_cmd_append(&cmd, argv[i]);
+    }
+
     if (!nob_cmd_run_sync_and_reset(&cmd)) return 1;
 
     return 0;
