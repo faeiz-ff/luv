@@ -1,10 +1,10 @@
 
-typ Fraction {
+typ Fraction[T] {
     numer: int
     denom: int
 }
 
-fun Fraction::new(int numer, int denom) -> Fraction? {
+fun Fraction::new(numer: int, denom: int) -> Fraction? {
     if denom == 0 {
         ret nil
     } else {
