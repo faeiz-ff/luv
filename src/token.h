@@ -6,7 +6,7 @@
 
 typedef enum {
     // Non visible Token
-    LUV_TT_EOF, LUV_TT_UNKNOWN, LUV_TT_NEWLINE,
+    LUV_TT_EOF, LUV_TT_UNKNOWN, LUV_TT_NEWLINE, LUV_TT_ERROR,
 
     // Single pass Token 
     LUV_TT_ASTERISK, LUV_TT_SOLIDUS,
@@ -30,7 +30,7 @@ typedef enum {
     LUV_TT_INT_LITERAL, LUV_TT_FLOAT_LITERAL, LUV_TT_STRING_LITERAL,
 
     // Names
-    LUV_TT_IDENTIFIER, LUV_TT_TYPE_ID,
+    LUV_TT_IDENTIFIER,
 
     // Keywords
     LUV_TT_DEF, LUV_TT_VAR, LUV_TT_FUN, LUV_TT_CMP,

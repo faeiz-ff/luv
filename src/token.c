@@ -2,7 +2,6 @@
 #include "token.h"
 #include "utils/memory.h"
 #include "utils/string_view.h"
-#include <ctype.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
@@ -27,16 +26,6 @@ LuvToken *luv_tok_key_or_id_from(LuvStringView *sv, size_t line_number)
     LuvToken *tok = { 0 };
     tok = luv_realloc(LuvToken, tok, 1);
     LuvTokenType type = LUV_TT_IDENTIFIER;
-
-    if (isupper(*sv->str)) {
-        type = LUV_TT_TYPE_ID;
-        goto skip_check;
-    }
-    // } else if (*sv->str == '_') {
-    //     if (sv->count == 1) type = LUV_TT_UNDERSCORE;
-    //     else type = LUV_TT_CONSTANT;
-    //     goto skip_check;
-    // }
 
     switch (sv->count) {
     case 2:
@@ -83,7 +72,6 @@ LuvToken *luv_tok_key_or_id_from(LuvStringView *sv, size_t line_number)
         if (strncmp(sv->str, "struct", 3) == 0 && (type = LUV_TT_STRUCT))
             break;
     }
-skip_check:
 
     luv_tok_from(tok, type, sv, line_number);
     return tok;
@@ -139,7 +127,6 @@ void luv_print_token_type(LuvTokenType type)
 
     case LUV_TT_NEWLINE: text = "NEWLINE"; break;
     case LUV_TT_IDENTIFIER: text = "IDENTIFIER"; break;
-    case LUV_TT_TYPE_ID: text = "TYPE_ID"; break;
 
     case LUV_TT_NOT: text = "NOT"; break;
     case LUV_TT_AND: text = "AND"; break;
