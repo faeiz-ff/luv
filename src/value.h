@@ -1,7 +1,7 @@
 #ifndef LUV_VALUE_H
 #define LUV_VALUE_H
 
-#include "../utils/memory.h"
+#include "./utils/memory.h"
 #include <stddef.h>
 
 typedef double LuvValue;

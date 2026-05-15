@@ -1,7 +1,7 @@
 #ifndef LUV_CHUNK_H
 #define LUV_CHUNK_H
 
-#include "../utils/RLE.h"
+#include "./utils/RLE.h"
 #include "value.h"
 #include <stddef.h>
 #include <stdint.h>

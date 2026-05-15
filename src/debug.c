@@ -27,7 +27,7 @@ size_t constant_long_instruction(const char *name, LuvChunk *chunk, size_t offse
     constant_index |= chunk->items[offset + 2];
     constant_index <<= 8;
     constant_index |= chunk->items[offset + 3];
-    
+
     printf("%-16s %4zu '", name, constant_index);
     luv_value_print(chunk->constants.items[constant_index]);
     printf("'\n");
