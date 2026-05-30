@@ -7,5 +7,6 @@ pub const Chunk = @import("chunk.zig").Chunk;
 pub const OpCode = @import("chunk.zig").OpCode;
 
 test {
+    _ = @import("debug.zig");
     std.testing.refAllDecls(@This());
 }
