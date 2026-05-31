@@ -53,10 +53,10 @@ pub const Chunk = struct {
 
     pub fn writeConstant(self: *Self, constant: luv.Value, line: usize) !void {
         var index = try self.addConstant(constant);
-        if (self.constants.items.len > 255) {
+        if (self.constants.items.len > 256) {
             try self.writeOpCode(.ConstantLong, line);
 
-            // If the total num of constant are more than a byte == 255
+            // If the total num of constant are more than a byte == 256
             // we increase indexing to 3 bytes == 16,777,216
             const byte0 = index & 0xFF;
             index >>= 8;
@@ -73,7 +73,7 @@ pub const Chunk = struct {
         }
     }
 
-    pub inline fn assembleConstantLongIndex(byte0: u8, byte1: u8, byte2: u8) usize {
+    pub inline fn assembleConstantLongIndex(byte2: u8, byte1: u8, byte0: u8) usize {
         var constantIndex: usize = byte2;
         constantIndex <<= 8;
         constantIndex |= byte1;
@@ -143,18 +143,23 @@ test "Write Constant Long" {
     var chunk: Chunk = .init(allocator);
     defer chunk.deinit();
 
-    for (0..255) |_| {
+    for (0..256) |_| {
         try chunk.writeConstant(.{ .data = 1 }, 1);
     }
-    try t.expectEqual(255 * 2, chunk.bytes.items.len); // Constant short
+    try t.expectEqual(256 * 2, chunk.bytes.items.len); // Constant short
 
     try chunk.writeConstant(.{ .data = 1 }, 2);
-    try t.expectEqual(255 * 2 + 4, chunk.bytes.items.len); // Constant long inserted
+    try t.expectEqual(256 * 2 + 4, chunk.bytes.items.len); // Constant long inserted
 
-    try t.expectEqual(256, chunk.constants.items.len);
+    try t.expectEqual(257, chunk.constants.items.len);
     try t.expectEqual(2, chunk.lines.data.items.len);
 
-    try t.expectEqual(255 * 2 + 4, chunk.lines.getAllCount());
-    try t.expectEqual(1, try chunk.lines.get(255 * 2 - 1));
-    try t.expectEqual(2, try chunk.lines.get(255 * 2));
+    try t.expectEqual(256 * 2 + 4, chunk.lines.getAllCount());
+    try t.expectEqual(1, try chunk.lines.get(256 * 2 - 1));
+    try t.expectEqual(2, try chunk.lines.get(256 * 2));
+
+    try t.expectEqual(OpCode.ConstantLong, @as(OpCode, @enumFromInt(chunk.bytes.items[256 * 2])));
+    try t.expectEqual(0, chunk.bytes.items[256 * 2 + 1]); // Byte 2
+    try t.expectEqual(1, chunk.bytes.items[256 * 2 + 2]); // Byte 1
+    try t.expectEqual(0, chunk.bytes.items[256 * 2 + 3]); // Byte 0
 }
