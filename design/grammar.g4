@@ -10,10 +10,7 @@ topLevelStmt
       ) ';'?
     ;
 
-useStmt
-    : 'use' STRING_LITERAL ('as' ID)?
-    | 'use' nameSpacedIdentifier ('as' ID)?
-    ;
+useStmt : 'use' STRING_LITERAL ('as' ID)?;
 
 tagType: 'tag' genericDeclaration? '{' (ID typeRule ';'?)+ '}';
 
@@ -39,6 +36,8 @@ typeBase
     | '[' typeRule ']'
     | 'fit' '{' ((ID typeRule | methodDecl) ';'?)* '}'
     | symType
+    | 'void'
+    | 'int' | 'flo' | 'str' | 'vec' | 'tup'
     ;
 
 objLiteral: '{' (ID '=' expr ','?)* '}';
@@ -74,8 +73,8 @@ expr
 ifExpr: 'if' expr (blockStmt | '->' expr) ('elif' expr (blockStmt | '->' expr))* ('else' (blockStmt | '->' expr))?;
 
 matchExpr
-    : 'match' expr '{' (expr (',' expr)* ('->' expr | blockStmt) ';'?)* ('else' ('->' expr | blockStmt))? '}'
-    | 'match' 'tag' expr '{' (ID ID? ('->' expr | blockStmt) ';'?)* ('else' ID? ('->' expr | blockStmt))? '}'
+    : 'match' expr '{' ('case' expr (',' expr)* ('->' expr | blockStmt) ';'?)* ('else' ('->' expr | blockStmt))? '}'
+    | 'match' expr '{' (ID ID? ('->' expr | blockStmt) ';'?)* ('else' ('->' expr | blockStmt))? '}'
     ;
 
 lambdaExpr: 'fun' genericDeclaration? '(' (ID typeRule (',' ID typeRule)*)? ')' typeRule? blockStmt;
@@ -107,6 +106,9 @@ literal
     | INT_LITERAL
     | FLOAT_LITERAL
     | objLiteral
+    | 'true'
+    | 'false'
+    | 'nil'
     ;
 
 indexSuffix: '[' expr ']';

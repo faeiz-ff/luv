@@ -113,7 +113,7 @@ fun main() {
 }
 ```
 
-`Own` keyword refers to the original type it is capturing.
+`Own` keyword refers to the original type it is capturing, its only valid inside a fit.
 The captured type is the fully qualified one, meaning all generic parameters must be fulfilled.
 
 ```luv
