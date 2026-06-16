@@ -11,18 +11,16 @@ typ Shape tag[T any] {
 }
 
 fun Shape.getArea[T any](own Shape[T]) {
-    return match tag shape {
+    return match shape {
         Circle radius -> radius * radius * Math.Pi
         Square length -> length * length
     }
 }
 
 fun main() {
-    var shape Shape[int] = Shape.Circle.[int](10)
+    var shape Shape[int] = Shape[int].Circle(10)
     var area = shape.getArea()
 }
 ```
 
-The syntax of generic fulfillment in the grammar position of expression is always before a call and must be preceded by a dot '.'
-
-
+Generic fulfillment are placed in square brackets.

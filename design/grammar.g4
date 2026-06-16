@@ -37,6 +37,7 @@ typeBase
     | 'fit' '{' ((ID typeRule | methodDecl) ';'?)* '}'
     | symType
     | 'void'
+    | 'any'
     | 'int' | 'flo' | 'str' | 'vec' | 'tup'
     ;
 
@@ -44,7 +45,6 @@ objLiteral: '{' (ID '=' expr ','?)* '}';
 
 stmt
     : defStmt
-    | funStmt
     | varStmt
     | blockStmt
     | 'continue'
@@ -72,10 +72,9 @@ expr
 
 ifExpr: 'if' expr (blockStmt | '->' expr) ('elif' expr (blockStmt | '->' expr))* ('else' (blockStmt | '->' expr))?;
 
-matchExpr
-    : 'match' expr '{' ('case' expr (',' expr)* ('->' expr | blockStmt) ';'?)* ('else' ('->' expr | blockStmt))? '}'
-    | 'match' expr '{' (ID ID? ('->' expr | blockStmt) ';'?)* ('else' ('->' expr | blockStmt))? '}'
-    ;
+matchExpr: 'match' expr '{' (matchCase | matchTag) '}';
+matchCase: ('case' expr (',' expr)* ('->' expr | blockStmt) ';'?)* ('else' ('->' expr | blockStmt))?;
+matchTag: (ID ID? ('->' expr | blockStmt) ';'?)* ('else' ID? ('->' expr | blockStmt))?;
 
 lambdaExpr: 'fun' genericDeclaration? '(' (ID typeRule (',' ID typeRule)*)? ')' typeRule? blockStmt;
 
@@ -93,7 +92,7 @@ termExpr: factorExpr (('+' | '-') factorExpr)*;
 factorExpr: unaryExpr (('*' | '/' | '%') unaryExpr)*;
 unaryExpr: postFixExpr | ('not' | '-') unaryExpr;
 
-postFixExpr: primaryExpr ( dotSuffix | indexSuffix | callSuffix | '?' | '!' )*;
+postFixExpr: primaryExpr ( dotSuffix | genericFulfill | callSuffix | '?' | '!' )*;
 
 primaryExpr
     : literal
@@ -111,8 +110,7 @@ literal
     | 'nil'
     ;
 
-indexSuffix: '[' expr ']';
-callSuffix: ('.' genericFulfill)? '(' (expr (',' expr)*)? ')';
+callSuffix: '(' (expr (',' expr)*)? ')';
 dotSuffix: '.' ID; 
 
 nameSpacedIdentifier: ID ('.' ID)*;

@@ -58,6 +58,7 @@ pub const Token = enum {
 
     Nom,
     Typ,
+    Any,
     Tag,
     Fit,
     Own,
