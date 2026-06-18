@@ -28,7 +28,9 @@ genericDeclaration: '[' ID typeRule (',' ID typeRule)* ']';
 
 genericFulfill: '[' typeRule (',' typeRule)* ']';
 
-typeRule: '&'? typeBase '?'* ('!' typeBase '?'*)?;
+typeRule: typePostFix ('!' typePostFix)?;
+
+typePostFix: typeBase '&'? '?'*;
 
 typeBase
     : nameSpacedIdentifier genericFulfill?

@@ -15,13 +15,13 @@ fun Foo.change(own Foo) {
     own.bar = 10
 }
 
-fun Foo.see(own &Foo) int {
+fun Foo.see(own Foo&) int {
     # own.bar = 10 Error!
     return own.bar
 }
 
 fun main() {
-    var f &Foo = Foo.{
+    var f Foo& = Foo.{
         bar = 10
     }
 
