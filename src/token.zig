@@ -5,7 +5,7 @@ pub const Token = enum {
     Eof,
     Unknown,
 
-    // single pass token
+    // single char token
     Asterisk,
     Solidus,
     Plus,
@@ -23,8 +23,6 @@ pub const Token = enum {
     Semicolon,
     QuestionMark,
     Colon,
-
-    // ambigous token, needs peek
     Minus,
     Less,
     Greater,
@@ -39,6 +37,11 @@ pub const Token = enum {
     LessLess,
     GreaterEqual,
     GreaterGreater,
+    PlusEqual,
+    MinusEqual,
+    AsteriskEqual,
+    SolidusEqual,
+    ModulusEqual,
 
     // literals
     IntLiteral,
