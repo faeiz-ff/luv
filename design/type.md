@@ -6,6 +6,7 @@ There are two typing mode in luv, Nominal and Structural. All of the type will b
 ## Nominal Typing
 
 Nominal type represents C-like structs where only the identity of type matters for equivalence, not its shape.
+The type name and then dotted object literal `.{}` makes a raw `nom`.
 
 ```luv
 typ Player nom {
@@ -14,7 +15,10 @@ typ Player nom {
 }
 
 fun main() {
-    var playa = Player("user", 100)
+    var playa = Player.{
+        name = "user" 
+        health = 100
+    }
 
     var entity = { 
         name = "user"
@@ -47,7 +51,12 @@ fun Player.getDepletedHp(own Player) str {
 }
 
 fun main() {
-    var playa = Player("user", 60, 100)
+    var playa = Player.{
+        name = "user"
+        hp = 60, 
+        maxHp = 100
+    }
+
     var depleted = playa.getDepletedHp()
     # var depleted = Player.getDepletedHp(playa)
 }
@@ -74,7 +83,7 @@ typ Pair nom {
 
 fun main() {
     var v1 Vec2 = { x = 1, y = 2 }
-    var v2 Vec2 = Pair(10, 20) # ok
+    var v2 Vec2 = Pair.{ x = 10, y = 20 } # ok
 
     var v3 Vec2 = { 
         x = 1 
@@ -104,7 +113,7 @@ typ Addable fit {
 }
 
 fun main() {
-    var p = Pair(10, 20)
+    var p = Pair.{ x = 10, y = 20}
     var a1 Addable = p 
     # a1 shape is { add(Own) int } and thats it, 
     # x and y still exist but its unreachable by a1

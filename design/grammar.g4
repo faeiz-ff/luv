@@ -28,7 +28,7 @@ genericDeclaration: '[' ID typeRule (',' ID typeRule)* ']';
 
 genericFulfill: '[' typeRule (',' typeRule)* ']';
 
-typeRule: typeBase '?'* ('!' typeBase '?'*)*;
+typeRule: '&'? typeBase '?'* ('!' typeBase '?'*)?;
 
 typeBase
     : nameSpacedIdentifier genericFulfill?
@@ -36,16 +36,13 @@ typeBase
     | '[' typeRule ']'
     | 'fit' '{' ((ID typeRule | methodDecl) ';'?)* '}'
     | symType
-    | 'void'
+    | 'nil'
     | 'any'
     | 'int' | 'flo' | 'str' | 'vec' | 'tup'
     ;
 
-objLiteral: '{' (ID '=' expr ','?)* '}';
-
 stmt
-    : defStmt
-    | varStmt
+    : varStmt
     | blockStmt
     | 'continue'
     | 'yield' expr?
@@ -70,11 +67,17 @@ expr
     | assignment
     ;
 
-ifExpr: 'if' expr (blockStmt | '->' expr) ('elif' expr (blockStmt | '->' expr))* ('else' (blockStmt | '->' expr))?;
+varGuard: 'var' ID typeRule? '=' relationalExpr;
+ifGuard
+    : varGuard ('and' expr)?
+    | expr
+    ;
+
+ifExpr: 'if' ifGuard (blockStmt | '->' expr) ('elif' ifGuard (blockStmt | '->' expr ))* ('else' (blockStmt | '->' expr))?;
 
 matchExpr: 'match' expr '{' (matchCase | matchTag) '}';
 matchCase: ('case' expr (',' expr)* ('->' expr | blockStmt) ';'?)* ('else' ('->' expr | blockStmt))?;
-matchTag: (ID ID? ('->' expr | blockStmt) ';'?)* ('else' ID? ('->' expr | blockStmt))?;
+matchTag: (ID ID? ('->' expr | blockStmt) ';'?)* (ID? 'else' ('->' expr | blockStmt))?;
 
 lambdaExpr: 'fun' genericDeclaration? '(' (ID typeRule (',' ID typeRule)*)? ')' typeRule? blockStmt;
 
@@ -100,6 +103,8 @@ primaryExpr
     | '(' expr ')'
     ;
 
+objLiteral: '{' (ID '=' expr ','?)* '}';
+
 literal
     : STRING_LITERAL
     | INT_LITERAL
@@ -111,7 +116,10 @@ literal
     ;
 
 callSuffix: '(' (expr (',' expr)*)? ')';
-dotSuffix: '.' ID; 
+dotSuffix
+    : '.' ID
+    | '.' objLiteral
+    ; 
 
 nameSpacedIdentifier: ID ('.' ID)*;
 
