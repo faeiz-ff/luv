@@ -21,7 +21,7 @@ fun Foo.see(own Foo&) int {
 }
 
 fun main() {
-    var f Foo& = Foo.{
+    var f& = Foo.{
         bar = 10
     }
 
@@ -30,3 +30,8 @@ fun main() {
 }
 
 ```
+
+using def and view means that the variable never will be mutated and changed ever by the current binding.
+
+Theres also a `&` shorthand on var or def after the variable name, to automatically infer the type of the expression and put a view on it.
+

@@ -9,7 +9,7 @@ use the name of the tagname, if capturing is needed, precede the tagname by an i
 typ Shape tag {
     Circle flo
     Square flo
-    Dot nil
+    Dot    nil
 }
 
 fun Shape.getArea(own Shape) flo {
@@ -44,7 +44,7 @@ typ Option tag[T any] {
 } # wow very original
 ```
 
-But we don't need to actually type `Option[T]`, theres a `?` shorthand at the type level: `T?`
+But we don't need to actually type `Option[T]`, theres a `?` shorthand at the type level: `T?`, and at the variable declaration level: `var a? = 10` to automatically infer the expression type and put an Option on it.
 
 ### Result
 
@@ -52,7 +52,7 @@ Result represent a type that may fail. It represent an Ok tag or Err tag. It is 
 
 ```luv
 typ Result tag[T any, U any] {
-    Ok T 
+    Ok  T 
     Err U
 }
 ```
@@ -69,23 +69,24 @@ If operated on Option, the resulting type will be the optional of the last expre
 This allows multiple chaining of `?` operator on Option freely as the None type will always be nil.
 
 ```luv
-var thing fit {
-    num int?
-    dec flo?
-}? = nil
+fun main() {
+    var thing fit {
+        num int?
+        dec flo?
+    }? = nil
 
-var num int? = thing?.num 
-var sum flo? = thing?.num? + thing?.dec? 
+    var num int? = thing?.num 
+    var sum flo? = thing?.num? + thing?.dec? 
 
-# var illegal = thing?.num + thing?.dec?
-#                        ^ this is of type int? cant be operated for '+'
+    # var illegal = thing?.num + thing?.dec?
+    #                        ^ this is of type int? cant be operated for '+'
+}
 ```
 
 If operated on Result, the resulting type will be the Result with the last expression type as OK, and the type of the first occurence of `?` as Err.
 This disallows multiple chaining of `?` operator on Result if the Err type is mismatched accross the chain.
 
 ```luv
-
 typ Inner fit {
     num int
 }
@@ -109,7 +110,6 @@ fun main() {
     # var illegal = willFail?.something 
     #                                 ^ expect str as Err, found int
 }
-
 ```
 
 ### PostFix ! Operator
@@ -118,7 +118,6 @@ Result and Option may use the `!` operator to return the 'fail' type at function
 The function return type must return optional type for Optional, or return a matching Err type for Result. 
 
 ```luv
-
 fun mayFailOption(num int?) int? {
     return num! + 1
 }
@@ -126,5 +125,4 @@ fun mayFailOption(num int?) int? {
 fun mayFailResult(num int!sym{Nil}) int!sym{Nil} {
     return num! + 1
 }
-
 ```

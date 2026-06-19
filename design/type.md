@@ -10,7 +10,7 @@ The type name and then dotted object literal `.{}` makes a raw `nom`.
 
 ```luv
 typ Player nom {
-    name str
+    name   str
     health int
 }
 
@@ -41,8 +41,8 @@ Functions that live inside a nominal type's namespace with the first argument be
 
 ```luv
 typ Player nom {
-    name str
-    hp int
+    name  str
+    hp    int
     maxHp int
 }
 
@@ -131,7 +131,7 @@ typ Addable fit {
 }
 
 typ Pair nom[T any] {
-    first T 
+    first  T 
     second T
 }
 
