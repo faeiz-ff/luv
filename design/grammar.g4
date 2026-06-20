@@ -12,8 +12,6 @@ topLevelStmt
 
 useStmt : 'use' STRING_LITERAL ('as' ID)?;
 
-tupType: 'tup' '{' (typeRule (';'|',')?)+ '}';
-
 tagType: 'tag' genericDeclaration? '{' (ID typeRule ';'?)+ '}';
 
 nomType: 'nom' genericDeclaration? '{' ('def'? ID typeRule ';'?)* '}';
@@ -38,12 +36,13 @@ typeBase
     : nameSpacedIdentifier
     | 'fun' '(' (typeRule (',' typeRule)* (',' '..' typeRule)? | '..' typeRule)? ')' typeRule
     | '[' typeRule ']'
+    | '[' typeRule (',' typeRule)+ ']'
+    | '[' ']'
     | 'fit' '{' ('def'? (ID typeRule | methodDecl) ';'?)* '}'
     | symType
-    | tupType
     | 'nil'
     | 'any'
-    | 'int' | 'flo' | 'str' | 'bol' | 'vec' | 'arr'
+    | 'int' | 'flo' | 'str' | 'bol'
     ;
 
 stmt
@@ -59,14 +58,17 @@ stmt
 
 blockStmt: '{' (stmt ';'?)* '}';
 
-varPattern
-    : ID (typeRule | '&' | '?')?
-    | '{' (ID (',' ID)*)? '}'
-    ;
+patternMatch: ID (',' ID)*;
+
+typePattern: (typeRule | '&' | '?');
+
+capturePattern: ('var' | 'def') patternMatch;
 
 defTopStmt: 'def' nameSpacedIdentifier (typeRule | '&' | '?')? '=' expr;
-defStmt: 'def' varPattern '=' expr;
-varStmt: 'var' varPattern '=' expr;
+
+defStmt: 'def' patternMatch typePattern? '=' expr;
+
+varStmt: 'var' patternMatch typePattern? '=' expr;
 
 funStmt: 'fun' nameSpacedIdentifier genericDeclaration? '(' (ID typeRule (',' ID typeRule)* (',' '..' ID typeRule)? | '..' ID typeRule)? ')' typeRule? blockStmt;
 
@@ -78,7 +80,8 @@ expr
     | assignment
     ;
 
-varGuard: ('var' | 'def') varPattern '=' postFixExpr;
+varGuard: capturePattern (typePattern | 'of' ID)? '=' postFixExpr;
+
 ifGuard
     : varGuard ('and' varGuard)* ('and' expr)?
     | expr
@@ -86,24 +89,32 @@ ifGuard
 
 ifExpr: 'if' ifGuard (blockStmt | '->' expr) ('elif' ifGuard (blockStmt | '->' expr ))* ('else' (blockStmt | '->' expr))?;
 
-matchExpr: 'match' expr '{' (matchCase | matchTag) (ID? 'else' ('->' expr | blockStmt))?'}';
+matchExpr: 'match' expr '{' (matchCase | matchTag) ((('var' | 'def') ID)? 'else' ('->' expr | blockStmt))?'}';
+
 matchCase: ('case' expr (',' expr)* ('->' expr | blockStmt) ';'?)+;
-matchTag: (ID ID? ('->' expr | blockStmt) ';'?)+;
+
+matchTag: ((patternMatch 'of')? ID ('->' expr | blockStmt) ';'?)+;
 
 lambdaExpr: 'fun' genericDeclaration? '(' (ID typeRule (',' ID typeRule)*)? ')' typeRule? blockStmt;
 
 forExpr
-    : 'for' ('var' | 'def') varPattern 'in' expr blockStmt
+    : 'for' capturePattern typePattern? 'in' expr blockStmt
     | 'for' blockStmt
     | 'for' expr blockStmt
     ;
 
 assignment: orExpr (('=' | '+=' | '-=' | '*=' | '/=' | '%=') expr)?;
+
 orExpr: andExpr ('or' andExpr)*;
+
 andExpr: relationalExpr ('and' relationalExpr)*;
+
 relationalExpr: termExpr (('>' | '<' | '>=' | '<=' | '==' | '!=') termExpr)?;
+
 termExpr: factorExpr (('+' | '-') factorExpr)*;
+
 factorExpr: unaryExpr (('*' | '/' | '%') unaryExpr)*;
+
 unaryExpr: postFixExpr | ('not' | '-') unaryExpr;
 
 postFixExpr: primaryExpr ( dotSuffix | genericFulfill | callSuffix | '?' | '!' )*;
@@ -111,11 +122,12 @@ postFixExpr: primaryExpr ( dotSuffix | genericFulfill | callSuffix | '?' | '!' )
 primaryExpr
     : literal
     | ID
-    | 'int' | 'flo' | 'str' | 'bol' | 'vec' | 'arr'
+    | 'int' | 'flo' | 'str' | 'bol'
     | '(' expr ')'
     ;
 
-objLiteral: '{' (('..' postFixExpr | 'def'? ID '=' expr) ','?)* '}';
+objLiteral: '{' (('..' postFixExpr | 'def'? ID '=' expr) ','?)+ '}';
+
 tupLiteral: '{' (orExpr (',' orExpr)*)? '}';
 
 literal
@@ -130,6 +142,7 @@ literal
     ;
 
 callSuffix: '(' (expr (',' expr)*)? ')';
+
 dotSuffix
     : '.' ID
     | '.' objLiteral
@@ -145,8 +158,8 @@ ID: [a-zA-Z_] [a-zA-Z_0-9]*;
 STRING_LITERAL: '"' .*? '"';
 
 FLOAT_LITERAL
-    : [0-9] [0-9_]+ '.' [0-9_]+ ([eE] '-'? [0-9]+)?
-    | [0-9] [0-9_]+ [eE] '-'? [0-9]+
+    : [0-9] [0-9_]* '.' [0-9_]+ ([eE] '-'? [0-9]+)?
+    | [0-9] [0-9_]* [eE] '-'? [0-9]+
     ;
 
 INT_LITERAL

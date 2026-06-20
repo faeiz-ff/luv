@@ -48,7 +48,7 @@ The guard may also match a tag to narrow the type, this `var` tag narrowing is o
 fun main() {
     var a int? = 10
 
-    if var b Some = a and b < 11 {
+    if var b of Some = a and b < 11 {
         print("yes")
     }
 }

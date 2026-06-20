@@ -7,26 +7,30 @@ use the name of the tagname, if capturing is needed, precede the tagname by an i
 
 ```luv
 typ Shape tag {
-    Circle flo
-    Square flo
-    Dot    nil
+    Circle    flo
+    Square    flo
+    Rectangle [ flo, flo ]
+    Dot       nil
 }
 
 fun Shape.getArea(own Shape) flo {
-    return match shape {
-        radius Circle -> radius * radius * Math.Pi
-        length Square -> length * length
+    return match own {
+        radius of Circle -> radius * radius * Math.pi
+        length of Square -> length * length
+        height, width of Rectangle -> height * width
         Dot -> 0
     }
 }
 
 fun main() {
-    var shape Shape = Shape.Circle(10)
+    var shape Shape = Shape.Circle.{10}
     var area = shape.getArea()
 }
 ```
 
 `else` can be used inside a `match-tag` expression for a catchall. But the captured variable will be of type `any`.
+
+tag variants can be created using the dotPostFix of objLiteral or tupLiteral. With objLiteral creation, an object will be created, this only works for fit. with tupLiteral of one element, it will assign it as the value. With tupLiteral of two or more, the args will be of N element tuple. If nil or [] is the variant type, then the 0 argument tuple will construct that.
 
 ## Builtin Tag
 
@@ -96,7 +100,7 @@ typ Data fit {
 }
 
 fun mayFail() Data!str {
-    return Ok({ something = Ok({ num = 1 }) })
+    return Ok.{ something = Ok.{ num = 1 } }
 }
 
 fun willFail() Data!int {

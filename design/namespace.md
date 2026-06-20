@@ -22,7 +22,7 @@ fun Math.abs(n flo) flo {
 
 fun Math.sqrt(n flo) flo {
     var guess = n
-    var next = 0
+    var next = 0.0
     for {
         next = (guess + n / guess) / 2
         if Math.abs(guess - next) < Math.epsilon { break }
