@@ -128,7 +128,7 @@ primaryExpr
 
 objLiteral: '{' (('..' postFixExpr | 'def'? ID '=' expr) ','?)+ '}';
 
-tupLiteral: '{' (orExpr (',' orExpr)*)? '}';
+tupLiteral: '(' (orExpr (',' orExpr)*)? ')';
 
 literal
     : STRING_LITERAL

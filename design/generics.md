@@ -15,7 +15,7 @@ fun Box.get[T any](own Box[T]) T {
 }
 
 fun main() {
-    var box Box[int] = Box[int].{10}
+    var box Box[int] = Box[int].(10)
     var inside = box.get[int]()
 }
 ```

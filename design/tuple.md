@@ -7,8 +7,8 @@ A literal of tup can be made using the object notation but with no ids, separate
 
 ```luv
 fun main() {
-    var a [int, int, int] = { 1, 2, 3 }
-    var b [int, str] = { 1, "a" }
+    var a [int, int, int] = (1, 2, 3)
+    var b [int, str] = (1, "a")
 
     var thing str = a(1)
     var cond bol = a(2)
@@ -27,7 +27,7 @@ typ Foo nom {
 }
 
 fun main() {
-    var foo = Foo.{ 1, "a", true }
+    var foo = Foo.( 1, "a", true )
 }
 ```
 
@@ -35,13 +35,13 @@ tuple can also be destructured at the var/def level
 
 ```luv
 fun main() {
-    var num, name, cond = { 10, "zie", true }
+    var num, name, cond = ( 10, "zie", true )
 
     for var i, num in vec.from(1,2,3).iter().enumerate() {
         print((i + num).toStr())
     }
 
-    if var n1, n2, n3 = { 1,2,3 } and n1 == 1 {
+    if var n1, n2, n3 = ( 1,2,3 ) and n1 == 1 {
         print(n1)
     }
 }

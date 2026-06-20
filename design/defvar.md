@@ -9,21 +9,21 @@ typ Box nom {
 }
 
 fun main() {
-    var mutBoxVar = Box.{ 10 }
+    var mutBoxVar = Box.(10)
     mutBoxVar.thing = 20
-    mutBoxVar = Box.{ 10 }
+    mutBoxVar = Box.(10)
 
-    def mutBoxDef = Box.{ 10 }
+    def mutBoxDef = Box.(10)
     mutBoxDef.thing = 20
-    # mutBoxDef = Box.{ 10 }      Error!
+    # mutBoxDef = Box.(10)      Error!
 
-    var viewBoxVar& = Box.{ 10 }
-    # viewBoxVar.thing = 20       Error!
-    viewBoxVar = Box.{ 10 }
+    var viewBoxVar& = Box.(10)
+    # viewBoxVar.thing = 20     Error!
+    viewBoxVar = Box.(10)
 
-    def viewBoxDef& = Box.{ 10 }
-    # Box.viewBoxDef.thing = 20   Error!
-    # Box.viewBoxDef = Box.{ 10 } Error!
+    def viewBoxDef& = Box.(10)
+    # Box.viewBoxDef.thing = 20 Error!
+    # Box.viewBoxDef = Box.(10) Error!
 }
 ```
 
@@ -42,19 +42,19 @@ typ Safe fit {
 fun main() {
     var s Safe = {
         def password = 1234
-        def box = Box.{ 10 }
+        def box = Box.(10)
         # needs the def keyword here
     }
 
-    # s.password = 4321  Error!
-    # s.box = Box.{ 20 } Error!
+    # s.password = 4321 Error!
+    # s.box = Box.(10)  Error!
 
     s.box.money -= 5 
     # Ok, because box is not a view and money is not definite
 
     s = {
         def password = 6767
-        def box = Box.{ 6767 }
+        def box = Box.(6767)
     } # Ok because s is var binded
 }
 ```

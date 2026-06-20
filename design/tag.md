@@ -23,7 +23,7 @@ fun Shape.getArea(own Shape) flo {
 }
 
 fun main() {
-    var shape Shape = Shape.Circle.{10}
+    var shape Shape = Shape.Circle.(10)
     var area = shape.getArea()
 }
 ```
