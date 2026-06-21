@@ -163,7 +163,7 @@ dotSuffix
 
 nameSpacedIdentifier: ID ('.' ID)*;
 
-formatString: 'f"' ('{' expr '}'| '\{' | .*? ) '"'
+formatString: 'f"' (('{' expr '}') | .)* '"';
 
 // Lexer
 
