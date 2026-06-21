@@ -10,10 +10,7 @@ topLevelStmt
       ) ';'?
     ;
 
-useStmt
-    : 'use' ID '=' STRING_LITERAL
-    | 'use' 'test' ID '=' STRING_LITERAL
-    ;
+useStmt: use' 'test' ID '=' STRING_LITERAL;
 
 tagType: 'tag' genericDeclaration? '{' (ID typeRule ';'?)+ '}';
 
@@ -163,7 +160,7 @@ dotSuffix
 
 nameSpacedIdentifier: ID ('.' ID)*;
 
-formatString: 'f"' (('{' expr '}') | .)* '"';
+formatString: 'f"' (('{' expr '}') | .)*? '"';
 
 // Lexer
 
