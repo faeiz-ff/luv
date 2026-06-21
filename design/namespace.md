@@ -3,7 +3,7 @@
 
 A namespace is created by Nominal types. To create a bare namespace, use an empty `nom {}`
 
-Unlike objects, namespaces are extensible. This allows outside code to attach a new thing, like methods that satisfies a `fit`, into an already existing namespace of a nominal type, as long as the names dont clash (no shadowing).
+Unlike objects, namespaces are extensible (inside module). This allows outside code to attach a new thing, like methods that satisfies a `fit`, into an already existing namespace of a nominal type, as long as the names dont clash (no shadowing).
 
 A `def` statement is used for attaching constant value into a identifier. At the top level, a `def` can be namespaced, its the only way to extend namespace. a defined 'variable' can't be modified.
 

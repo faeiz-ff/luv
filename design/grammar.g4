@@ -10,11 +10,14 @@ topLevelStmt
       ) ';'?
     ;
 
-useStmt : 'use' STRING_LITERAL ('as' ID)?;
+useStmt
+    : 'use' ID '=' STRING_LITERAL
+    | 'use' 'test' ID '=' STRING_LITERAL
+    ;
 
 tagType: 'tag' genericDeclaration? '{' (ID typeRule ';'?)+ '}';
 
-nomType: 'nom' genericDeclaration? '{' ('def'? ID typeRule ';'?)* '}';
+nomType: 'nom' genericDeclaration? '{' ('def'? '^'? ID typeRule ';'?)* '}';
 
 symType: 'sym' '{' (ID ('=' expr)? (';' | ',')?)+ '}';
 
@@ -64,13 +67,21 @@ typePattern: (typeRule | '&' | '?');
 
 capturePattern: ('var' | 'def') patternMatch;
 
-defTopStmt: 'def' nameSpacedIdentifier (typeRule | '&' | '?')? '=' expr;
+defTopStmt
+    : 'def' '^'? nameSpacedIdentifier (typeRule | '&' | '?')? '=' expr
+    | 'def' 'test' STRING_LITERAL blockStmt
+    ;
 
 defStmt: 'def' patternMatch typePattern? '=' expr;
 
 varStmt: 'var' patternMatch typePattern? '=' expr;
 
-funStmt: 'fun' nameSpacedIdentifier genericDeclaration? '(' (ID typeRule (',' ID typeRule)* (',' '..' ID typeRule)? | '..' ID typeRule)? ')' typeRule? blockStmt;
+funParams: '(' (ID typeRule (',' ID typeRule)* (',' '..' ID typeRule)? | '..' ID typeRule)? ')';
+
+funStmt
+    : 'fun' '^'? nameSpacedIdentifier genericDeclaration? funParams typeRule? blockStmt
+    | 'fun' 'test' ID genericDeclaration? funParams typeRule? blockStmt
+    ;
 
 expr
     : ifExpr
@@ -95,7 +106,7 @@ matchCase: ('case' expr (',' expr)* ('->' expr | blockStmt) ';'?)+;
 
 matchTag: ((patternMatch 'of')? ID ('->' expr | blockStmt) ';'?)+;
 
-lambdaExpr: 'fun' genericDeclaration? '(' (ID typeRule (',' ID typeRule)*)? ')' typeRule? blockStmt;
+lambdaExpr: 'fun' genericDeclaration? funParams typeRule? blockStmt;
 
 forExpr
     : 'for' capturePattern typePattern? 'in' expr blockStmt
@@ -124,6 +135,7 @@ primaryExpr
     | ID
     | 'int' | 'flo' | 'str' | 'bol'
     | '(' expr ')'
+    | formatString
     ;
 
 objLiteral: '{' (('..' postFixExpr | 'def'? ID '=' expr) ','?)+ '}';
@@ -150,6 +162,8 @@ dotSuffix
     ; 
 
 nameSpacedIdentifier: ID ('.' ID)*;
+
+formatString: 'f"' ('{' expr '}'| '\{' | .*? ) '"'
 
 // Lexer
 

@@ -11,7 +11,6 @@ pub const Token = enum {
     Plus,
     Modulus,
     Ampersand,
-    Pipe,
     Lbrace,
     Rbrace,
     Lparen,
@@ -28,8 +27,11 @@ pub const Token = enum {
     Greater,
     Equal,
     Bang,
+    Caret,
 
     // double char token
+    FString,
+    DotDot,
     EqualEqual,
     Arrow,
     BangEqual,
@@ -69,6 +71,7 @@ pub const Token = enum {
     If,
     Elif,
     Else,
+    Of,
     For,
     In,
     Match,
@@ -84,6 +87,7 @@ pub const Token = enum {
     False,
     True,
     Nil,
+    Test,
 
     // primitives
     Flt,
