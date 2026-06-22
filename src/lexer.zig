@@ -281,7 +281,28 @@ pub const Lexer = struct {
         );
     }
 
-    pub fn scanToken(self: *Lexer) !luv.Token {
+    fn string(self: *Lexer) !luv.Token {
+        const start = self.char_index;
+        var ch = self.peek(0) orelse return LexerError.UnterminatedString;
+        while (ch != '"') {
+            self.char_index += 1;
+            ch = self.peek(0) orelse return LexerError.UnterminatedString;
+            if (ch == '\\') {
+                self.char_index += 2;
+                ch = self.peek(0) orelse return LexerError.UnterminatedString;
+            }
+            if (ch == '\n') return LexerError.UnterminatedString;
+        }
+
+        return self.makeToken(
+            self.code[start..self.char_index],
+            .StringLiteral
+        );
+    }
+
+    fn scanToken(self: *Lexer) !luv.Token {
+        errdefer self.char_index += 1;
+
         var ch: u8 = undefined;
         while (true) {
             self.skipWhitespace();
@@ -309,8 +330,8 @@ pub const Lexer = struct {
             } else if (ch == '#') {
                 self.comment();
                 ch = self.peek(0) orelse return self.makeEof();
-            // } else if (ch == '"') {
-            //     return self.string();
+            } else if (ch == '"') {
+                return self.string();
             } else {
                 return self.primitiveToken();
             }
@@ -330,6 +351,26 @@ pub const Lexer = struct {
         return tokens;
     }
 };
+
+test "String Literal" {
+    const t = std.testing;
+
+    const code = 
+        \\ "hello!\n"
+        \\ "\na"
+        \\ "\""
+        \\ "123123123asdfbkajdsfkjvjalkdslkfjaskdjlkjlkzjcxlkvjldsk\t"
+        ;
+    
+    var l: Lexer = .init(code);
+    var tok: luv.Token = undefined;
+
+    for (0..4) |_| {
+        tok = try l.scanToken();
+        try t.expectEqual(luv.TokenType.StringLiteral, tok.tt);
+    }
+    
+}
 
 test "Forms of Numbers" {
     const t = std.testing;
