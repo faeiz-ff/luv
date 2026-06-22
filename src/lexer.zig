@@ -3,7 +3,13 @@ const luv = @import("root.zig");
 
 pub const LexerError = error{
     UnterminatedString,
-    InvalidOperator,
+    UnknownOperator,
+    InvalidNumber,
+    FloatDotNotNumeric,
+    FloatExpNotNumeric,
+    BinNumberBlank,
+    HexNumberBlank,
+    OctNumberBlank,
 };
 
 pub const Lexer = struct {
@@ -157,7 +163,7 @@ pub const Lexer = struct {
                     );
                 }
             },
-            else => return LexerError.InvalidOperator,
+            else => return LexerError.UnknownOperator,
         };
     }
 
@@ -197,10 +203,74 @@ pub const Lexer = struct {
         );
     }
 
-    fn number(self: *Lexer) luv.Token {
+    fn number(self: *Lexer) !luv.Token {
         const start = self.char_index;
         var ch = self.peek(0).?;
-        while (isNumeric(ch)) {
+        var isFloat = false;
+        var isExp = false;
+        while (isNumeric(ch) or ch == '_') {
+            self.char_index += 1;
+            
+            ch = self.peek(0) orelse break;
+            if (!isFloat and ch == '.') {
+                isFloat = true;
+                self.char_index += 1;
+                ch = self.peek(0) orelse break;
+                if (!isNumeric(ch)) return LexerError.FloatDotNotNumeric;
+            } else if (!isExp and (ch == 'e' or ch == 'E')) {
+                isFloat = true;
+                isExp = true;
+                self.char_index += 1;
+                ch = self.peek(0) orelse break;
+                if (ch == '-') {
+                    self.char_index += 1;
+                    ch = self.peek(0) orelse break;
+                }
+                if (!isNumeric(ch)) return LexerError.FloatExpNotNumeric;
+            }
+        }
+
+        return self.makeToken(
+            self.code[start..self.char_index],
+            if (isFloat) .FloatLiteral else .IntLiteral
+        );
+    }
+
+    fn binNumber(self: *Lexer) !luv.Token {
+        self.char_index += 2;
+        const start = self.char_index;
+        var ch = self.peek(0) orelse return LexerError.BinNumberBlank;
+        while(isBin(ch) or ch == '_') {
+            self.char_index += 1;
+            ch = self.peek(0) orelse break;
+        }
+
+        return self.makeToken(
+            self.code[start..self.char_index],
+            .IntLiteral
+        );
+    }
+
+    fn hexNumber(self: *Lexer) !luv.Token {
+        self.char_index += 2;
+        const start = self.char_index;
+        var ch = self.peek(0) orelse return LexerError.HexNumberBlank;
+        while(isHex(ch) or ch == '_') {
+            self.char_index += 1;
+            ch = self.peek(0) orelse break;
+        }
+
+        return self.makeToken(
+            self.code[start..self.char_index],
+            .IntLiteral
+        );
+    }
+
+    fn octNumber(self: *Lexer) !luv.Token {
+        self.char_index += 2;
+        const start = self.char_index;
+        var ch = self.peek(0) orelse return LexerError.OctNumberBlank;
+        while(isOct(ch) or ch == '_') {
             self.char_index += 1;
             ch = self.peek(0) orelse break;
         }
@@ -226,15 +296,15 @@ pub const Lexer = struct {
                 // }
                 return self.identifier();
             } else if (isNumeric(ch)) {
-                // TODO
-                // if (ch == '0') {
-                //     const peek_ch = self.peek(1) orelse return self.number();
-                //     switch (peek_ch) {
-                //         'b' => return self.binNumber(),
-                //         'o' => return self.octNumber(),
-                //         'x' => return self.hexNumber(),
-                //     }
-                // }
+                if (ch == '0') {
+                    const peek_ch = self.peek(1) orelse return self.number();
+                    switch (peek_ch) {
+                        'b' => return self.binNumber(),
+                        'o' => return self.octNumber(),
+                        'x' => return self.hexNumber(),
+                        else => {},
+                    }
+                }
                 return self.number();
             } else if (ch == '#') {
                 self.comment();
@@ -242,9 +312,10 @@ pub const Lexer = struct {
             // } else if (ch == '"') {
             //     return self.string();
             } else {
-                return try self.primitiveToken();
+                return self.primitiveToken();
             }
         }
+        unreachable;
     }
 
     pub fn lex(self: *Lexer, allocator: std.mem.Allocator, code: []const u8) !std.ArrayList(luv.Token) {
@@ -259,6 +330,43 @@ pub const Lexer = struct {
         return tokens;
     }
 };
+
+test "Forms of Numbers" {
+    const t = std.testing;
+
+    const code =
+        \\1 
+        \\123
+        \\12_000 
+        \\0x0123456789facade
+        \\0xff_ff
+        \\0b00000000
+        \\0b0101_0101
+        \\0o01234567
+        \\0o67_67_67
+
+        \\0.0
+        \\1_000.0
+        \\10.0e5
+        \\1.2E3
+        \\3.1e-6
+        \\0e1
+        \\100_000e-10
+        ;
+
+    var l: Lexer = .init(code);
+    var tok: luv.Token = undefined;
+
+    for (0..9) |_| {
+        tok = try l.scanToken();
+        try t.expectEqual(luv.TokenType.IntLiteral, tok.tt);
+    }
+
+    for (0..7) |_| {
+        tok = try l.scanToken();
+        try t.expectEqual(luv.TokenType.FloatLiteral, tok.tt);
+    }
+}
 
 test "Comment Ignored" {
     const t = std.testing;
