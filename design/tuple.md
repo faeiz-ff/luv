@@ -4,16 +4,17 @@
 Tuple types represents an ordered collection of type(s). Tuple bindings are automatically `def`inite. 
 tuple are typed with brackets '[]'. Single element tuple is not valid, its grouping, 0 or 2+ are valid.
 A literal of tup can be made using the object notation but with no ids, separated by commas.
+A tuple can be indexed with dot '.' followed by a number, every tuple item is typed.
 
 ```luv
 fun main() {
     var a [int, int, int] = (1, 2, 3)
     var b [int, str] = (1, "a")
 
-    var thing str = a(1)
-    var cond bol = a(2)
+    var thing int = a.1
+    var name str = b.2
 
-    # a(1) = 10  Error!
+    # a.1 = 10  Error!
 }
 ```
 

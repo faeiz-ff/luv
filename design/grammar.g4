@@ -150,12 +150,13 @@ literal
     | 'nil'
     ;
 
-callSuffix: '(' (expr (',' expr)*)? ')';
+callSuffix: '(' ('..'? expr (',' '..'? expr)*)? ')';
 
 dotSuffix
     : '.' ID
     | '.' objLiteral
     | '.' tupLiteral
+    | '.' INT_LITERAL
     ; 
 
 nameSpacedIdentifier: ID ('.' ID)*;

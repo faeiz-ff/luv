@@ -9,11 +9,13 @@ It's definition is roughly like this:
 typ Iter fit[T any] {
     next(Own) T?
 }
-```
 
-Every iterator carries a context from the closures of next.
+typ Iterable fit[T any] {
+    toIter(Own) Iter[T]
+}
+```
 
 Every values in the `for in` loop will be automatically unwrapped. 
 If yields nil, it will stop the execution of the `for` loop.
 
-`for in` loop only accepts iterators, convert them to Iter.
+`for in` loop only accepts `Iter` or `Iterable`.

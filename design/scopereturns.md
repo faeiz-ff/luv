@@ -3,7 +3,7 @@
 
 There are 3 scoped blocks to return a value from, functions, for blocks, and if/match blocks.
 
-if/match blocks can use the shorthand arrow `->` then expr or `yield` in a block to return an expression, 
+if/match blocks can use the shorthand arrow '->' then expr or `yield` in a block to return an expression, 
 for blocks can use `break` to return an expr, and functions use `return` to return an expr.
 
 These keywords will return an expression at the nearest valid scope. In a `for` block, `yield` will returns if the `for` block is inside of an if block, and so on.

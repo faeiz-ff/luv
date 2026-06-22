@@ -6,7 +6,6 @@ Readonly variable means that the object is immutable by the current binding, the
 It can be constructed at the type level using '&'. A mutable object can be coerced into a view, but not the reverse.
 
 ```luv
-
 typ Foo nom {
     bar int
 } 
@@ -28,10 +27,9 @@ fun main() {
     f.see()    # Ok
     # f.change() Not Ok
 }
-
 ```
 
 using def and view means that the variable never will be mutated and changed ever by the current binding.
 
-Theres also a `&` shorthand on var or def after the variable name, to automatically infer the type of the expression and put a view on it.
+Theres also a '&' shorthand on var or def after the variable name, to automatically infer the type of the expression and put a view on it.
 

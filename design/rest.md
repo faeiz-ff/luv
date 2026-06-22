@@ -3,7 +3,7 @@
 
 ## Variadic
 
-Functions can recieve variadic number of arguments using the rest '..' modifier before the last parameter identifier. Stored as the built in `arr` type.
+Functions can recieve variadic number of arguments using the rest '..' modifier before the last parameter identifier. Stored as the built in `vec` type.
 
 ```luv
 fun sum(..args int) {
@@ -35,4 +35,16 @@ fun main() {
 
 multiple spread will overwrite each other values if clashed, but will error if the types don't match.
 
+Function call can also have spread on a built-in `vec` type, for matching a variadic function type.
+
+```luv
+fun main() {
+    var v = vec[int].new()
+    v.append(1)
+    v.append(2)
+    v.append(3)
+    
+    var m = sum(..v)
+}
+```
 

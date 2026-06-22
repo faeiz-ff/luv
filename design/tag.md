@@ -48,7 +48,7 @@ typ Option tag[T any] {
 } # wow very original
 ```
 
-But we don't need to actually type `Option[T]`, theres a `?` shorthand at the type level: `T?`, and at the variable declaration level: `var a? = 10` to automatically infer the expression type and put an Option on it.
+But we don't need to actually type `Option[T]`, theres a '?' shorthand at the type level: `T?`, and at the variable declaration level: `var a? = 10` to automatically infer the expression type and put an Option on it.
 
 ### Result
 
@@ -67,10 +67,10 @@ A shorthand for Result type is `T!U` where T is the Ok and U is the Err.
 
 ### PostFix ? Operator
 
-A `?` operator returns an Option / Result at the variable level, but can be chain operated into the 'ok' type in the expression level.
+A '?' operator returns an Option / Result at the variable level, but can be chain operated into the 'ok' type in the expression level.
 
 If operated on Option, the resulting type will be the optional of the last expression type.
-This allows multiple chaining of `?` operator on Option freely as the None type will always be nil.
+This allows multiple chaining of '?' operator on Option freely as the None type will always be nil.
 
 ```luv
 fun main() {
@@ -87,8 +87,8 @@ fun main() {
 }
 ```
 
-If operated on Result, the resulting type will be the Result with the last expression type as OK, and the type of the first occurence of `?` as Err.
-This disallows multiple chaining of `?` operator on Result if the Err type is mismatched accross the chain.
+If operated on Result, the resulting type will be the Result with the last expression type as OK, and the type of the first occurence of '?' as Err.
+This disallows multiple chaining of '?' operator on Result if the Err type is mismatched accross the chain.
 
 ```luv
 typ Inner fit {
@@ -118,7 +118,7 @@ fun main() {
 
 ### PostFix ! Operator
 
-Result and Option may use the `!` operator to return the 'fail' type at function level, analogous to 'try' in zig.
+Result and Option may use the '!' operator to return the 'fail' type at function level, analogous to 'try' in zig.
 The function return type must return optional type for Optional, or return a matching Err type for Result. 
 
 ```luv

@@ -4,7 +4,7 @@
 If expression is the usual conditional block in many other languages.
 It can be used as a statement or an expession.
 
-It can use a shorthand `->` to yield an expression.
+It can use a shorthand '->' to yield an expression.
 
 As an expression, the yielded result must be of the same type.
 
