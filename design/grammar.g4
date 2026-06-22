@@ -160,8 +160,6 @@ dotSuffix
 
 nameSpacedIdentifier: ID ('.' ID)*;
 
-formatString: 'f"' (('{' ID '}') | .)*? '"';
-
 // Lexer
 
 ID: [a-zA-Z_] [a-zA-Z_0-9]*;

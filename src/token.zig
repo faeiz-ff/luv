@@ -36,7 +36,6 @@ pub const TokenType = enum {
     Caret,
 
     // double char token
-    FString,
     DotDot,
     EqualEqual,
     Arrow,

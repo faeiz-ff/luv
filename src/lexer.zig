@@ -308,13 +308,6 @@ pub const Lexer = struct {
             self.skipWhitespace();
             ch = self.peek(0) orelse return self.makeEof();
             if (isAlpha(ch)) {
-                // TODO
-                // if (ch == 'f') {
-                //     const peek_ch = self.peek(1) orelse return self.identifier();
-                //     if (peek_ch == '"') {
-                //         return self.fstring();
-                //     }
-                // }
                 return self.identifier();
             } else if (isNumeric(ch)) {
                 if (ch == '0') {
