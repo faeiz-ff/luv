@@ -1,6 +1,13 @@
 const std = @import("std");
 
-pub const Token = enum {
+pub const Token = struct {
+    tt: TokenType, 
+    lexeme: []const u8,
+    x_pos: usize,
+    y_pos: usize,
+};
+
+pub const TokenType = enum {
     // Non visible Token
     Eof,
     Unknown,
@@ -21,7 +28,6 @@ pub const Token = enum {
     Comma,
     Semicolon,
     QuestionMark,
-    Colon,
     Minus,
     Less,
     Greater,
@@ -36,9 +42,7 @@ pub const Token = enum {
     Arrow,
     BangEqual,
     LessEqual,
-    LessLess,
     GreaterEqual,
-    GreaterGreater,
     PlusEqual,
     MinusEqual,
     AsteriskEqual,
