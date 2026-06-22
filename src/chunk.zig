@@ -73,7 +73,7 @@ pub const Chunk = struct {
         }
     }
 
-    pub inline fn assembleConstantLongIndex(byte2: u8, byte1: u8, byte0: u8) usize {
+    pub fn assembleConstantLongIndex(byte2: u8, byte1: u8, byte0: u8) usize {
         var constantIndex: usize = byte2;
         constantIndex <<= 8;
         constantIndex |= byte1;

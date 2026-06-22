@@ -34,7 +34,7 @@ pub const Lexer = struct {
         };
     }
 
-    inline fn peek(self: *Lexer, num: comptime_int) ?u8 {
+    fn peek(self: *Lexer, num: comptime_int) ?u8 {
         if (self.char_index + num < self.code.len) {
             return self.code.ptr[self.char_index + num];
         } else {
@@ -42,35 +42,35 @@ pub const Lexer = struct {
         }
     }
 
-    inline fn isAlpha(ch: u8) bool {
+    fn isAlpha(ch: u8) bool {
         return (ch >= 'a' and ch <= 'z') or (ch >= 'A' and ch <= 'Z');
     }
 
-    inline fn isNumeric(ch: u8) bool {
+    fn isNumeric(ch: u8) bool {
         return ch >= '0' and ch <= '9';
     }
 
-    inline fn isAlphaNumeric(ch: u8) bool {
+    fn isAlphaNumeric(ch: u8) bool {
         return isAlpha(ch) or isNumeric(ch) or ch == '_';
     }
 
-    inline fn isHex(ch: u8) bool {
+    fn isHex(ch: u8) bool {
         return isNumeric(ch) or (ch >= 'a' and ch <= 'f') or (ch >= 'A' and ch <= 'F');
     }
 
-    inline fn isOct(ch: u8) bool {
+    fn isOct(ch: u8) bool {
         return ch >= '0' and ch <= '7';
     }
 
-    inline fn isBin(ch: u8) bool {
+    fn isBin(ch: u8) bool {
         return ch == '0' or ch == '1';
     }
 
-    inline fn isWhitespace(ch: u8) bool {
+    fn isWhitespace(ch: u8) bool {
         return ch == ' ' or ch == '\t' or ch == '\n' or ch == '\r';
     }
 
-    inline fn makeEof(self: *Lexer) luv.Token {
+    fn makeEof(self: *Lexer) luv.Token {
         self.char_index += 1;
         return .{ 
             .lexeme = "eof", 
@@ -91,7 +91,7 @@ pub const Lexer = struct {
         };
     }
 
-    inline fn doubleCharToken(self: *Lexer, default_tt: luv.TokenType, peek_ch: u8, double_tt: luv.TokenType) luv.Token {
+    fn doubleCharToken(self: *Lexer, default_tt: luv.TokenType, peek_ch: u8, double_tt: luv.TokenType) luv.Token {
         const ch = self.peek(1);
         if (ch != null and ch.? == peek_ch) {
             self.char_index += 2;
@@ -108,7 +108,7 @@ pub const Lexer = struct {
         }
     }
 
-    inline fn singleCharToken(self: *Lexer, tt: luv.TokenType) luv.Token {
+    fn singleCharToken(self: *Lexer, tt: luv.TokenType) luv.Token {
         self.char_index += 1;
         return self.makeToken(
             self.code[self.char_index - 1 .. self.char_index],

@@ -31,7 +31,7 @@ pub const VM = struct {
         self.resetStack();
     }
 
-    pub inline fn resetStack(self: *Self) void {
+    pub fn resetStack(self: *Self) void {
         self.stack.clearAndFree(self.allocator);
     }
 
@@ -44,16 +44,16 @@ pub const VM = struct {
         };
     }
 
-    inline fn readByte(self: *Self) u8 {
+    fn readByte(self: *Self) u8 {
         self.ip += 1;
         return self.chunk.bytes.items[self.ip - 1];
     }
 
-    inline fn readConstant(self: *Self) luv.Value {
+    fn readConstant(self: *Self) luv.Value {
         return self.chunk.constants.items[self.readByte()];
     }
 
-    inline fn binaryOperation(self: *Self, comptime op: luv.OpCode) !void {
+    fn binaryOperation(self: *Self, comptime op: luv.OpCode) !void {
         var a = self.pop() orelse return error.RuntimeErr;
         const b = self.pop() orelse return error.RuntimeErr;
 
