@@ -91,6 +91,7 @@ pub const Lexer = struct {
         };
     }
 
+    /// Returns a token with double_tt Type if peek_ch is correct, default_tt otherwise.
     fn doubleCharToken(self: *Lexer, default_tt: luv.TokenType, peek_ch: u8, double_tt: luv.TokenType) luv.Token {
         const ch = self.peek(1);
         if (ch != null and ch.? == peek_ch) {
@@ -107,6 +108,7 @@ pub const Lexer = struct {
         return self.makeToken(self.code[self.char_index - 1 .. self.char_index], tt);
     }
 
+    /// !! Assumes a non null read at self.char_index
     fn primitiveToken(self: *Lexer) LexerError!luv.Token {
         const ch = self.peek(0).?;
         return switch (ch) {
@@ -168,6 +170,7 @@ pub const Lexer = struct {
         }
     }
 
+    /// !! Assumes a '#' is read at self.char_index
     fn comment(self: *Lexer) void {
         self.char_index += 1;
         var ch = self.peek(0) orelse return;
@@ -181,6 +184,7 @@ pub const Lexer = struct {
         return std.mem.order(u8, s1, s2) == std.math.Order.eq;
     }
 
+    /// Returns a Keyword TokenType !! Assumes start and end as valid slice index of self.code
     fn keywordType(self: *Lexer, start: usize, end: usize) ?luv.TokenType {
         switch (end - start) {
             2 => switch (self.code[start]) {
@@ -260,6 +264,7 @@ pub const Lexer = struct {
         }
     }
 
+    /// Returns either an .Identifier or Keywords !! Assumes an Alphabetic char is read at self.char_index
     fn identifierOrKeyword(self: *Lexer) luv.Token {
         const start = self.char_index;
         var ch = self.peek(0).?;
@@ -273,6 +278,7 @@ pub const Lexer = struct {
         return self.makeToken(self.code[start..self.char_index], tt);
     }
 
+    /// Returns either a .Float or .Int luv token !! Assumes a valid number is read at self.char_index
     fn number(self: *Lexer) !luv.Token {
         const start = self.char_index;
         var ch = self.peek(0).?;
@@ -303,6 +309,7 @@ pub const Lexer = struct {
         return self.makeToken(self.code[start..self.char_index], if (isFloat) .FloatLiteral else .IntLiteral);
     }
 
+    /// Returns an binary .Int luv token !! Assumes '0b' is read at self.char_index
     fn binNumber(self: *Lexer) !luv.Token {
         self.char_index += 2;
         const start = self.char_index;
@@ -315,6 +322,7 @@ pub const Lexer = struct {
         return self.makeToken(self.code[start..self.char_index], .IntLiteral);
     }
 
+    /// Returns an hexadecimal .Int luv token !! Assumes '0x' is read at self.char_index
     fn hexNumber(self: *Lexer) !luv.Token {
         self.char_index += 2;
         const start = self.char_index;
@@ -327,6 +335,7 @@ pub const Lexer = struct {
         return self.makeToken(self.code[start..self.char_index], .IntLiteral);
     }
 
+    /// Returns an octal .Int luv token !! Assumes '0o' is read at self.char_index
     fn octNumber(self: *Lexer) !luv.Token {
         self.char_index += 2;
         const start = self.char_index;
@@ -339,6 +348,7 @@ pub const Lexer = struct {
         return self.makeToken(self.code[start..self.char_index], .IntLiteral);
     }
 
+    /// !! Assumes '"' is read at self.char_index
     fn string(self: *Lexer) !luv.Token {
         const start = self.char_index;
         var ch = self.peek(0) orelse return LexerError.UnterminatedString;
@@ -346,6 +356,7 @@ pub const Lexer = struct {
             self.char_index += 1;
             ch = self.peek(0) orelse return LexerError.UnterminatedString;
             if (ch == '\\') {
+                // TODO: Find out how to parse escaped characters
                 self.char_index += 2;
                 ch = self.peek(0) orelse return LexerError.UnterminatedString;
             }
@@ -355,6 +366,7 @@ pub const Lexer = struct {
         return self.makeToken(self.code[start..self.char_index], .StringLiteral);
     }
 
+    /// Returns a single token
     fn scanToken(self: *Lexer) !luv.Token {
         errdefer self.char_index += 1;
 
@@ -406,23 +418,23 @@ test "Identifier Or Keyword" {
     const t = std.testing;
 
     const code =
-    \\def var fun use nom
-    \\typ any tag fit Own
-    \\if elif else of for
-    \\in match case break continue
-    \\yield return not and or
-    \\false true nil test flo
-    \\bol str int vec
+        \\def var fun use nom
+        \\typ any tag fit Own
+        \\if elif else of for
+        \\in match case break continue
+        \\yield return not and or
+        \\false true nil test flo
+        \\bol str int vec
     ;
-        
-    const keywords = [_]luv.TokenType {
-    .Def, .Var, .Fun, .Use, .Nom,
-    .Typ, .Any, .Tag, .Fit, .Own,
-    .If, .Elif, .Else, .Of, .For,
-    .In, .Match, .Case, .Break, .Continue,
-    .Yield, .Return, .Not, .And, .Or,
-    .False, .True, .Nil, .Test, .Flo,
-    .Bol, .Str, .Int, .Vec,
+
+    const keywords = [_]luv.TokenType{
+        .Def,   .Var,    .Fun,  .Use,   .Nom,
+        .Typ,   .Any,    .Tag,  .Fit,   .Own,
+        .If,    .Elif,   .Else, .Of,    .For,
+        .In,    .Match,  .Case, .Break, .Continue,
+        .Yield, .Return, .Not,  .And,   .Or,
+        .False, .True,   .Nil,  .Test,  .Flo,
+        .Bol,   .Str,    .Int,  .Vec,
     };
 
     var l: Lexer = .init(code);
