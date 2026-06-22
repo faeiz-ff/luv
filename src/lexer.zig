@@ -161,15 +161,24 @@ pub const Lexer = struct {
         };
     }
 
-    fn skipWhitespace(self: *Lexer) !void {
+    fn skipWhitespace(self: *Lexer) void {
         var ch = self.peek(0) orelse return;
         while (isWhitespace(ch)) {
             self.char_index += 1;
             self.x_pos += 1;
-            if (ch == '\n' or ch == '\r') {
+            if (ch == '\n') {
                 self.y_pos += 1;
                 self.x_pos = 0;
             }
+            ch = self.peek(0) orelse return;
+        }
+    }
+
+    fn comment(self: *Lexer) void {
+        self.char_index += 1;
+        var ch = self.peek(0) orelse return;
+        while (ch != '\n') {
+            self.char_index += 1;
             ch = self.peek(0) orelse return;
         }
     }
@@ -203,36 +212,38 @@ pub const Lexer = struct {
     }
 
     pub fn scanToken(self: *Lexer) !luv.Token {
-        try self.skipWhitespace();
-
-        const ch = self.peek(0) orelse return self.makeEof();
-        if (isAlpha(ch)) {
-            // TODO
-            // if (ch == 'f') {
-            //     const peek_ch = self.peek(1) orelse return self.identifier();
-            //     if (peek_ch == '"') {
-            //         return self.fstring();
-            //     }
-            // }
-            return self.identifier();
-        } else if (isNumeric(ch)) {
-            // TODO
-            // if (ch == '0') {
-            //     const peek_ch = self.peek(1) orelse return self.number();
-            //     switch (peek_ch) {
-            //         'b' => return self.binNumber(),
-            //         'o' => return self.octNumber(),
-            //         'x' => return self.hexNumber(),
-            //     }
-            // }
-            return self.number();
-        // TODO
-        // } else if (ch == '#') {
-        //     return self.comment();
-        // } else if (ch == '"') {
-        //     return self.string();
-        } else {
-            return self.primitiveToken();
+        var ch: u8 = undefined;
+        while (true) {
+            self.skipWhitespace();
+            ch = self.peek(0) orelse return self.makeEof();
+            if (isAlpha(ch)) {
+                // TODO
+                // if (ch == 'f') {
+                //     const peek_ch = self.peek(1) orelse return self.identifier();
+                //     if (peek_ch == '"') {
+                //         return self.fstring();
+                //     }
+                // }
+                return self.identifier();
+            } else if (isNumeric(ch)) {
+                // TODO
+                // if (ch == '0') {
+                //     const peek_ch = self.peek(1) orelse return self.number();
+                //     switch (peek_ch) {
+                //         'b' => return self.binNumber(),
+                //         'o' => return self.octNumber(),
+                //         'x' => return self.hexNumber(),
+                //     }
+                // }
+                return self.number();
+            } else if (ch == '#') {
+                self.comment();
+                ch = self.peek(0) orelse return self.makeEof();
+            // } else if (ch == '"') {
+            //     return self.string();
+            } else {
+                return try self.primitiveToken();
+            }
         }
     }
 
@@ -248,6 +259,29 @@ pub const Lexer = struct {
         return tokens;
     }
 };
+
+test "Comment Ignored" {
+    const t = std.testing;
+
+    const code = 
+        \\ 1# this is ignored 1 + 1
+        \\# this whole line should be ignored
+        \\  *##
+        ;    
+
+    var l: Lexer = .init(code);
+    var tok: luv.Token = undefined;
+
+    tok = try l.scanToken();
+    try t.expectEqualStrings("1", tok.lexeme);
+    try t.expectEqual(0, tok.y_pos);
+    try t.expectEqual(1, tok.x_pos);
+
+    tok = try l.scanToken();
+    try t.expectEqualStrings("*", tok.lexeme);
+    try t.expectEqual(2, tok.y_pos);
+    try t.expectEqual(2, tok.x_pos);
+}
 
 test "Correct X position and lines" {
     const t = std.testing;
@@ -280,7 +314,6 @@ test "Correct X position and lines" {
     tok = try l.scanToken();
     try t.expectEqual(5, tok.x_pos);
     try t.expectEqual(2, tok.y_pos);
-
 }
 
 test "Primitive Token" {
