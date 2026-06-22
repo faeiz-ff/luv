@@ -61,8 +61,6 @@ pub const TokenType = enum {
     Var,
     Fun,
     Use,
-    Pub,
-    As,
 
     Nom,
     Typ,
@@ -93,10 +91,9 @@ pub const TokenType = enum {
     Test,
 
     // primitives
-    Flt,
+    Flo,
     Bol,
     Str,
     Int,
     Vec,
-    Tup,
 };

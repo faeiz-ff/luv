@@ -18,7 +18,7 @@ pub const Lexer = struct {
     code: []const u8,
     x_pos: usize,
 
-    pub const empty = Lexer {
+    pub const empty = Lexer{
         .char_index = 0,
         .y_pos = 0,
         .code = undefined,
@@ -72,9 +72,9 @@ pub const Lexer = struct {
 
     fn makeEof(self: *Lexer) luv.Token {
         self.char_index += 1;
-        return .{ 
-            .lexeme = "eof", 
-            .tt = .Eof, 
+        return .{
+            .lexeme = "eof",
+            .tt = .Eof,
             .x_pos = self.x_pos,
             .y_pos = self.y_pos,
         };
@@ -95,25 +95,16 @@ pub const Lexer = struct {
         const ch = self.peek(1);
         if (ch != null and ch.? == peek_ch) {
             self.char_index += 2;
-            return self.makeToken(
-                self.code[self.char_index - 2 .. self.char_index], 
-                double_tt
-            );
+            return self.makeToken(self.code[self.char_index - 2 .. self.char_index], double_tt);
         } else {
             self.char_index += 1;
-            return self.makeToken(
-                self.code[self.char_index - 1 .. self.char_index],
-                default_tt
-            );
+            return self.makeToken(self.code[self.char_index - 1 .. self.char_index], default_tt);
         }
     }
 
     fn singleCharToken(self: *Lexer, tt: luv.TokenType) luv.Token {
         self.char_index += 1;
-        return self.makeToken(
-            self.code[self.char_index - 1 .. self.char_index],
-            tt
-        );
+        return self.makeToken(self.code[self.char_index - 1 .. self.char_index], tt);
     }
 
     fn primitiveToken(self: *Lexer) LexerError!luv.Token {
@@ -140,27 +131,24 @@ pub const Lexer = struct {
             ';' => self.singleCharToken(.Semicolon),
             '?' => self.singleCharToken(.QuestionMark),
             '^' => self.singleCharToken(.Caret),
-            
+
             '-' => {
                 const peek_ch = self.peek(1) orelse return self.makeEof();
                 if (peek_ch == '>') {
                     self.char_index += 2;
                     return self.makeToken(
-                        self.code[self.char_index - 2 .. self.char_index], 
+                        self.code[self.char_index - 2 .. self.char_index],
                         .Arrow,
                     );
                 } else if (peek_ch == '=') {
                     self.char_index += 2;
                     return self.makeToken(
-                        self.code[self.char_index - 2 .. self.char_index], 
+                        self.code[self.char_index - 2 .. self.char_index],
                         .MinusEqual,
                     );
                 } else {
                     self.char_index += 1;
-                    return self.makeToken(
-                        self.code[self.char_index - 1 .. self.char_index],
-                        .Minus
-                    );
+                    return self.makeToken(self.code[self.char_index - 1 .. self.char_index], .Minus);
                 }
             },
             else => return LexerError.UnknownOperator,
@@ -189,7 +177,90 @@ pub const Lexer = struct {
         }
     }
 
-    fn identifier(self: *Lexer) luv.Token {
+    fn strEq(s1: []const u8, s2: []const u8) bool {
+        return std.mem.order(u8, s1, s2) == std.math.Order.eq;
+    }
+
+    fn keywordType(self: *Lexer, start: usize, end: usize) ?luv.TokenType {
+        switch (end - start) {
+            2 => switch (self.code[start]) {
+                'i' => switch (self.code[start + 1]) {
+                    'f' => return .If,
+                    'n' => return .In,
+                    else => return null,
+                },
+                'o' => switch (self.code[start + 1]) {
+                    'f' => return .Of,
+                    'r' => return .Or,
+                    else => return null,
+                },
+                else => return null,
+            },
+            3 => switch (self.code[start]) {
+                'a' => {
+                    if (strEq(self.code[start + 1 .. end], "nd")) return .And;
+                    if (strEq(self.code[start + 1 .. end], "ny")) return .Any;
+                    return null;
+                },
+                'b' => if (strEq(self.code[start + 1 .. end], "ol")) return .Bol else return null,
+                'd' => if (strEq(self.code[start + 1 .. end], "ef")) return .Def else return null,
+                'f' => {
+                    if (strEq(self.code[start + 1 .. end], "un")) return .Fun;
+                    if (strEq(self.code[start + 1 .. end], "or")) return .For;
+                    if (strEq(self.code[start + 1 .. end], "it")) return .Fit;
+                    if (strEq(self.code[start + 1 .. end], "lo")) return .Flo;
+                    return null;
+                },
+                'i' => if (strEq(self.code[start + 1 .. end], "nt")) return .Int else return null,
+                'n' => {
+                    if (strEq(self.code[start + 1 .. end], "om")) return .Nom;
+                    if (strEq(self.code[start + 1 .. end], "ot")) return .Not;
+                    if (strEq(self.code[start + 1 .. end], "il")) return .Nil;
+                    return null;
+                },
+                'O' => if (strEq(self.code[start + 1 .. end], "wn")) return .Own else return null,
+                's' => if (strEq(self.code[start + 1 .. end], "tr")) return .Str else return null,
+                't' => {
+                    if (strEq(self.code[start + 1 .. end], "yp")) return .Typ;
+                    if (strEq(self.code[start + 1 .. end], "ag")) return .Tag;
+                    return null;
+                },
+                'u' => if (strEq(self.code[start + 1 .. end], "se")) return .Use else return null,
+                'v' => {
+                    if (strEq(self.code[start + 1 .. end], "ar")) return .Var;
+                    if (strEq(self.code[start + 1 .. end], "ec")) return .Vec;
+                    return null;
+                },
+                else => return null,
+            },
+            4 => switch (self.code[start]) {
+                'c' => if (strEq(self.code[start + 1 .. end], "ase")) return .Case else return null,
+                'e' => {
+                    if (strEq(self.code[start + 1 .. end], "lif")) return .Elif;
+                    if (strEq(self.code[start + 1 .. end], "lse")) return .Else;
+                    return null;
+                },
+                't' => {
+                    if (strEq(self.code[start + 1 .. end], "rue")) return .True;
+                    if (strEq(self.code[start + 1 .. end], "est")) return .Test;
+                    return null;
+                },
+                else => return null,
+            },
+            5 => switch (self.code[start]) {
+                'b' => if (strEq(self.code[start + 1 .. end], "reak")) return .Break else return null,
+                'f' => if (strEq(self.code[start + 1 .. end], "alse")) return .False else return null,
+                'm' => if (strEq(self.code[start + 1 .. end], "atch")) return .Match else return null,
+                'y' => if (strEq(self.code[start + 1 .. end], "ield")) return .Yield else return null,
+                else => return null,
+            },
+            6 => if (strEq(self.code[start..end], "return")) return .Return else return null,
+            8 => if (strEq(self.code[start..end], "continue")) return .Continue else return null,
+            else => return null,
+        }
+    }
+
+    fn identifierOrKeyword(self: *Lexer) luv.Token {
         const start = self.char_index;
         var ch = self.peek(0).?;
         while (isAlphaNumeric(ch)) {
@@ -197,10 +268,9 @@ pub const Lexer = struct {
             ch = self.peek(0) orelse break;
         }
 
-        return self.makeToken(
-            self.code[start..self.char_index],
-            .Identifier
-        );
+        const tt: luv.TokenType = self.keywordType(start, self.char_index) orelse .Identifier;
+
+        return self.makeToken(self.code[start..self.char_index], tt);
     }
 
     fn number(self: *Lexer) !luv.Token {
@@ -210,7 +280,7 @@ pub const Lexer = struct {
         var isExp = false;
         while (isNumeric(ch) or ch == '_') {
             self.char_index += 1;
-            
+
             ch = self.peek(0) orelse break;
             if (!isFloat and ch == '.') {
                 isFloat = true;
@@ -230,55 +300,43 @@ pub const Lexer = struct {
             }
         }
 
-        return self.makeToken(
-            self.code[start..self.char_index],
-            if (isFloat) .FloatLiteral else .IntLiteral
-        );
+        return self.makeToken(self.code[start..self.char_index], if (isFloat) .FloatLiteral else .IntLiteral);
     }
 
     fn binNumber(self: *Lexer) !luv.Token {
         self.char_index += 2;
         const start = self.char_index;
         var ch = self.peek(0) orelse return LexerError.BinNumberBlank;
-        while(isBin(ch) or ch == '_') {
+        while (isBin(ch) or ch == '_') {
             self.char_index += 1;
             ch = self.peek(0) orelse break;
         }
 
-        return self.makeToken(
-            self.code[start..self.char_index],
-            .IntLiteral
-        );
+        return self.makeToken(self.code[start..self.char_index], .IntLiteral);
     }
 
     fn hexNumber(self: *Lexer) !luv.Token {
         self.char_index += 2;
         const start = self.char_index;
         var ch = self.peek(0) orelse return LexerError.HexNumberBlank;
-        while(isHex(ch) or ch == '_') {
+        while (isHex(ch) or ch == '_') {
             self.char_index += 1;
             ch = self.peek(0) orelse break;
         }
 
-        return self.makeToken(
-            self.code[start..self.char_index],
-            .IntLiteral
-        );
+        return self.makeToken(self.code[start..self.char_index], .IntLiteral);
     }
 
     fn octNumber(self: *Lexer) !luv.Token {
         self.char_index += 2;
         const start = self.char_index;
         var ch = self.peek(0) orelse return LexerError.OctNumberBlank;
-        while(isOct(ch) or ch == '_') {
+        while (isOct(ch) or ch == '_') {
             self.char_index += 1;
             ch = self.peek(0) orelse break;
         }
 
-        return self.makeToken(
-            self.code[start..self.char_index],
-            .IntLiteral
-        );
+        return self.makeToken(self.code[start..self.char_index], .IntLiteral);
     }
 
     fn string(self: *Lexer) !luv.Token {
@@ -294,10 +352,7 @@ pub const Lexer = struct {
             if (ch == '\n') return LexerError.UnterminatedString;
         }
 
-        return self.makeToken(
-            self.code[start..self.char_index],
-            .StringLiteral
-        );
+        return self.makeToken(self.code[start..self.char_index], .StringLiteral);
     }
 
     fn scanToken(self: *Lexer) !luv.Token {
@@ -308,7 +363,7 @@ pub const Lexer = struct {
             self.skipWhitespace();
             ch = self.peek(0) orelse return self.makeEof();
             if (isAlpha(ch)) {
-                return self.identifier();
+                return self.identifierOrKeyword();
             } else if (isNumeric(ch)) {
                 if (ch == '0') {
                     const peek_ch = self.peek(1) orelse return self.number();
@@ -337,7 +392,7 @@ pub const Lexer = struct {
 
         var tokens = try std.ArrayList(luv.Token).initCapacity(allocator, 32);
 
-        while(self.char_index <= self.code.len) {
+        while (self.char_index <= self.code.len) {
             try tokens.append(allocator, try self.scanToken());
         }
 
@@ -345,16 +400,50 @@ pub const Lexer = struct {
     }
 };
 
+// TODO: Test the errors!
+
+test "Identifier Or Keyword" {
+    const t = std.testing;
+
+    const code =
+    \\def var fun use nom
+    \\typ any tag fit Own
+    \\if elif else of for
+    \\in match case break continue
+    \\yield return not and or
+    \\false true nil test flo
+    \\bol str int vec
+    ;
+        
+    const keywords = [_]luv.TokenType {
+    .Def, .Var, .Fun, .Use, .Nom,
+    .Typ, .Any, .Tag, .Fit, .Own,
+    .If, .Elif, .Else, .Of, .For,
+    .In, .Match, .Case, .Break, .Continue,
+    .Yield, .Return, .Not, .And, .Or,
+    .False, .True, .Nil, .Test, .Flo,
+    .Bol, .Str, .Int, .Vec,
+    };
+
+    var l: Lexer = .init(code);
+    var tok: luv.Token = undefined;
+
+    for (0..keywords.len) |i| {
+        tok = try l.scanToken();
+        try t.expectEqual(keywords[i], tok.tt);
+    }
+}
+
 test "String Literal" {
     const t = std.testing;
 
-    const code = 
+    const code =
         \\ "hello!\n"
         \\ "\na"
         \\ "\""
         \\ "123123123asdfbkajdsfkjvjalkdslkfjaskdjlkjlkzjcxlkvjldsk\t"
-        ;
-    
+    ;
+
     var l: Lexer = .init(code);
     var tok: luv.Token = undefined;
 
@@ -362,7 +451,6 @@ test "String Literal" {
         tok = try l.scanToken();
         try t.expectEqual(luv.TokenType.StringLiteral, tok.tt);
     }
-    
 }
 
 test "Forms of Numbers" {
@@ -378,7 +466,6 @@ test "Forms of Numbers" {
         \\0b0101_0101
         \\0o01234567
         \\0o67_67_67
-
         \\0.0
         \\1_000.0
         \\10.0e5
@@ -386,7 +473,7 @@ test "Forms of Numbers" {
         \\3.1e-6
         \\0e1
         \\100_000e-10
-        ;
+    ;
 
     var l: Lexer = .init(code);
     var tok: luv.Token = undefined;
@@ -405,11 +492,11 @@ test "Forms of Numbers" {
 test "Comment Ignored" {
     const t = std.testing;
 
-    const code = 
+    const code =
         \\ 1# this is ignored 1 + 1
         \\# this whole line should be ignored
         \\  *##
-        ;    
+    ;
 
     var l: Lexer = .init(code);
     var tok: luv.Token = undefined;
@@ -428,13 +515,13 @@ test "Comment Ignored" {
 test "Correct X position and lines" {
     const t = std.testing;
 
-    const code = 
+    const code =
         \\+ kanye *
         \\   -
         \\     %
-        ;
+    ;
 
-    var l : Lexer = .init(code);
+    var l: Lexer = .init(code);
     var tok: luv.Token = undefined;
 
     tok = try l.scanToken();
@@ -466,13 +553,13 @@ test "Primitive Token" {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var l : Lexer = .empty;
+    var l: Lexer = .empty;
 
-    const code = 
+    const code =
         \\*/+%&{}()[].,;?-<>!^=
         \\.. == -> != <= >=
         \\+= -= *= /= %=
-        ;
+    ;
 
     var tokens = try l.lex(allocator, code);
     defer tokens.deinit(allocator);
@@ -514,4 +601,3 @@ test "Primitive Token" {
     try t.expectEqual(tt.ModulusEqual, toks[31].tt);
     try t.expectEqual(tt.Eof, toks[32].tt);
 }
-
