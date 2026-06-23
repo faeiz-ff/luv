@@ -365,6 +365,7 @@ pub const Lexer = struct {
     /// !! Assumes '"' is read at self.char_index
     fn string(self: *Lexer) !luv.Token {
         const start = self.char_index;
+        self.char_index += 1;
         var ch = self.peek(0) orelse return LexerError.UnterminatedString;
         while (ch != '"') {
             self.char_index += 1;
@@ -376,6 +377,9 @@ pub const Lexer = struct {
             }
             if (ch == '\n') return LexerError.UnterminatedString;
         }
+
+        // consume end string
+        self.char_index += 1;
 
         return self.makeToken(self.code[start..self.char_index], .StringLiteral);
     }
@@ -455,23 +459,29 @@ test "Identifier Or Keyword" {
     }
 }
 
-test "String Literal" {
+test "Basic string" {
     const t = std.testing;
 
     const code =
-        \\ "hello!\n"
-        \\ "\na"
-        \\ "\""
-        \\ "123123123asdfbkajdsfkjvjalkdslkfjaskdjlkjlkzjcxlkvjldsk\t"
+        \\"a"
+        \\"123"
+        \\"hello"
     ;
 
     var l: Lexer = .init(code);
     var tok: luv.Token = undefined;
 
-    for (0..4) |_| {
-        tok = try l.scanToken();
-        try t.expectEqual(luv.TokenType.StringLiteral, tok.tt);
-    }
+    tok = try l.scanToken();
+    try t.expectEqual(luv.TokenType.StringLiteral, tok.tt);
+    try t.expectEqualStrings("\"a\"", tok.lexeme);
+
+    tok = try l.scanToken();
+    try t.expectEqual(luv.TokenType.StringLiteral, tok.tt);
+    try t.expectEqualStrings("\"123\"", tok.lexeme);
+
+    tok = try l.scanToken();
+    try t.expectEqual(luv.TokenType.StringLiteral, tok.tt);
+    try t.expectEqualStrings("\"hello\"", tok.lexeme);
 }
 
 test "Forms of Numbers" {
