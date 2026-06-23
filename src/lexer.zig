@@ -280,8 +280,17 @@ pub const Lexer = struct {
 
     /// Returns either a .Float or .Int luv token !! Assumes a valid number is read at self.char_index
     fn number(self: *Lexer) !luv.Token {
-        const start = self.char_index;
         var ch = self.peek(0).?;
+        if (ch == '0') {
+            const peek_ch = self.peek(1);
+            if (peek_ch != null) switch (peek_ch.?) {
+                'b' => return self.binNumber(),
+                'o' => return self.octNumber(),
+                'x' => return self.hexNumber(),
+                else => {},
+            };
+        }
+        const start = self.char_index;
         var isFloat = false;
         var isExp = false;
         while (isNumeric(ch) or ch == '_') {
@@ -377,15 +386,6 @@ pub const Lexer = struct {
             if (isAlpha(ch)) {
                 return self.identifierOrKeyword();
             } else if (isNumeric(ch)) {
-                if (ch == '0') {
-                    const peek_ch = self.peek(1) orelse return self.number();
-                    switch (peek_ch) {
-                        'b' => return self.binNumber(),
-                        'o' => return self.octNumber(),
-                        'x' => return self.hexNumber(),
-                        else => {},
-                    }
-                }
                 return self.number();
             } else if (ch == '#') {
                 self.comment();
