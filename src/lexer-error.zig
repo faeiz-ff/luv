@@ -1,10 +1,10 @@
 const std = @import("std");
 
-const Errors = @import("errors.zig").Errors;
+const ErrorReport = @import("error-report.zig").ErrorReport;
 
 pub const LexerError = struct {
     pub fn unterminatedString(
-        errors: *Errors,
+        errors: *ErrorReport,
         filename: ?[]const u8,
         x_pos: usize,
         y_pos: usize,
@@ -21,7 +21,7 @@ pub const LexerError = struct {
     }
 
     pub fn unknownOperator(
-        errors: *Errors,
+        errors: *ErrorReport,
         filename: ?[]const u8,
         x_pos: usize,
         y_pos: usize,
@@ -40,7 +40,7 @@ pub const LexerError = struct {
 
 test "basic functionality" {
     const t = std.testing;
-    var err = Errors{
+    var err = ErrorReport{
         .count = 0,
         .capture = try .initCapacity(std.testing.allocator, 32),
     };

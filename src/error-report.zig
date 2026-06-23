@@ -1,11 +1,11 @@
 const std = @import("std");
 
-pub const Errors = struct {
+pub const ErrorReport = struct {
     count: usize,
     capture: ?std.ArrayListUnmanaged(u8), // For testing
 
     pub fn report(
-        self: *Errors,
+        self: *ErrorReport,
         comptime errheader: []const u8,
         comptime errmsg: ?[]const u8,
         filename: ?[]const u8,
@@ -23,7 +23,7 @@ pub const Errors = struct {
             self.print("error ({d}:{d}): {s}:\n", .{ y_pos + 1, x_pos, errheader });
         }
 
-        const line = Errors.getLine(y_pos, code) orelse return;
+        const line = ErrorReport.getLine(y_pos, code) orelse return;
         self.print("\t{s}\n\t", .{line});
         for (0..x_pos) |_| {
             self.print(" ", .{});
@@ -35,7 +35,7 @@ pub const Errors = struct {
     }
 
     fn print(
-        self: *Errors,
+        self: *ErrorReport,
         comptime fmt: []const u8,
         args: anytype,
     ) void {
