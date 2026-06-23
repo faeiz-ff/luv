@@ -92,7 +92,12 @@ pub const Lexer = struct {
     }
 
     /// Returns a token with double_tt Type if peek_ch is correct, default_tt otherwise.
-    fn doubleCharToken(self: *Lexer, default_tt: luv.TokenType, peek_ch: u8, double_tt: luv.TokenType) luv.Token {
+    fn doubleCharToken(
+        self: *Lexer,
+        default_tt: luv.TokenType,
+        peek_ch: u8,
+        double_tt: luv.TokenType,
+    ) luv.Token {
         const ch = self.peek(1);
         if (ch != null and ch.? == peek_ch) {
             self.char_index += 2;
@@ -399,7 +404,11 @@ pub const Lexer = struct {
         unreachable;
     }
 
-    pub fn lex(self: *Lexer, allocator: std.mem.Allocator, code: []const u8) !std.ArrayList(luv.Token) {
+    pub fn lex(
+        self: *Lexer,
+        allocator: std.mem.Allocator,
+        code: []const u8,
+    ) !std.ArrayList(luv.Token) {
         self.code = code;
 
         var tokens = try std.ArrayList(luv.Token).initCapacity(allocator, 32);
