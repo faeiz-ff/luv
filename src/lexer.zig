@@ -1,36 +1,35 @@
 const std = @import("std");
 const luv = @import("root.zig");
 
-pub const LexerError = error{
-    UnterminatedString,
-    UnknownOperator,
-    InvalidNumber,
-    FloatDotNotNumeric,
-    FloatExpNotNumeric,
-    BinNumberBlank,
-    HexNumberBlank,
-    OctNumberBlank,
+const ErrorReport = @import("error-report.zig").ErrorReport;
+
+pub const LexError = error{
+    BadSyntax,
+    InternalErr,
 };
 
 pub const Lexer = struct {
     char_index: usize,
-    y_pos: usize,
     code: []const u8,
     x_pos: usize,
+    y_pos: usize,
+    errors: ErrorReport,
 
     pub const empty = Lexer{
         .char_index = 0,
-        .y_pos = 0,
         .code = undefined,
         .x_pos = 0,
+        .y_pos = 0,
+        .errors = .empty,
     };
 
     pub fn init(code: []const u8) Lexer {
         return .{
             .char_index = 0,
-            .y_pos = 0,
             .code = code,
             .x_pos = 0,
+            .y_pos = 0,
+            .errors = .empty,
         };
     }
 
@@ -114,7 +113,7 @@ pub const Lexer = struct {
     }
 
     /// !! Assumes a non null read at self.char_index
-    fn primitiveToken(self: *Lexer) LexerError!luv.Token {
+    fn primitiveToken(self: *Lexer) LexError!luv.Token {
         const ch = self.peek(0).?;
         return switch (ch) {
             '*' => self.doubleCharToken(.Asterisk, '=', .AsteriskEqual),
@@ -140,7 +139,7 @@ pub const Lexer = struct {
             '^' => self.singleCharToken(.Caret),
 
             '-' => {
-                const peek_ch = self.peek(1) orelse return self.makeEof();
+                const peek_ch = self.peek(1) orelse return self.singleCharToken(.Minus);
                 if (peek_ch == '>') {
                     self.char_index += 2;
                     return self.makeToken(
@@ -158,7 +157,7 @@ pub const Lexer = struct {
                     return self.makeToken(self.code[self.char_index - 1 .. self.char_index], .Minus);
                 }
             },
-            else => return LexerError.UnknownOperator,
+            else => return self.reportErrorUnknownOperator(),
         };
     }
 
@@ -284,7 +283,7 @@ pub const Lexer = struct {
     }
 
     /// Returns either a .Float or .Int luv token !! Assumes a valid number is read at self.char_index
-    fn number(self: *Lexer) !luv.Token {
+    fn number(self: *Lexer) LexError!luv.Token {
         var ch = self.peek(0).?;
         if (ch == '0') {
             const peek_ch = self.peek(1);
@@ -306,7 +305,7 @@ pub const Lexer = struct {
                 isFloat = true;
                 self.char_index += 1;
                 ch = self.peek(0) orelse break;
-                if (!isNumeric(ch)) return LexerError.FloatDotNotNumeric;
+                if (!isNumeric(ch)) return self.reportErrorUnexpected("Numeric Value");
             } else if (!isExp and (ch == 'e' or ch == 'E')) {
                 isFloat = true;
                 isExp = true;
@@ -316,7 +315,7 @@ pub const Lexer = struct {
                     self.char_index += 1;
                     ch = self.peek(0) orelse break;
                 }
-                if (!isNumeric(ch)) return LexerError.FloatExpNotNumeric;
+                if (!isNumeric(ch)) return self.reportErrorUnexpected("Numeric Value");
             }
         }
 
@@ -324,10 +323,10 @@ pub const Lexer = struct {
     }
 
     /// Returns an binary .Int luv token !! Assumes '0b' is read at self.char_index
-    fn binNumber(self: *Lexer) !luv.Token {
+    fn binNumber(self: *Lexer) LexError!luv.Token {
         self.char_index += 2;
         const start = self.char_index;
-        var ch = self.peek(0) orelse return LexerError.BinNumberBlank;
+        var ch = self.peek(0) orelse return self.reportErrorUnexpected("Binary Number");
         while (isBin(ch) or ch == '_') {
             self.char_index += 1;
             ch = self.peek(0) orelse break;
@@ -337,10 +336,10 @@ pub const Lexer = struct {
     }
 
     /// Returns an hexadecimal .Int luv token !! Assumes '0x' is read at self.char_index
-    fn hexNumber(self: *Lexer) !luv.Token {
+    fn hexNumber(self: *Lexer) LexError!luv.Token {
         self.char_index += 2;
         const start = self.char_index;
-        var ch = self.peek(0) orelse return LexerError.HexNumberBlank;
+        var ch = self.peek(0) orelse return self.reportErrorUnexpected("Hexadecimal Number");
         while (isHex(ch) or ch == '_') {
             self.char_index += 1;
             ch = self.peek(0) orelse break;
@@ -350,10 +349,10 @@ pub const Lexer = struct {
     }
 
     /// Returns an octal .Int luv token !! Assumes '0o' is read at self.char_index
-    fn octNumber(self: *Lexer) !luv.Token {
+    fn octNumber(self: *Lexer) LexError!luv.Token {
         self.char_index += 2;
         const start = self.char_index;
-        var ch = self.peek(0) orelse return LexerError.OctNumberBlank;
+        var ch = self.peek(0) orelse return self.reportErrorUnexpected("Octal Number");
         while (isOct(ch) or ch == '_') {
             self.char_index += 1;
             ch = self.peek(0) orelse break;
@@ -363,19 +362,20 @@ pub const Lexer = struct {
     }
 
     /// !! Assumes '"' is read at self.char_index
-    fn string(self: *Lexer) !luv.Token {
+    fn string(self: *Lexer) LexError!luv.Token {
         const start = self.char_index;
         self.char_index += 1;
-        var ch = self.peek(0) orelse return LexerError.UnterminatedString;
+        var ch = self.peek(0) orelse return self.reportErrorUnterminatedString();
         while (ch != '"') {
             self.char_index += 1;
-            ch = self.peek(0) orelse return LexerError.UnterminatedString;
+            ch = self.peek(0) orelse return self.reportErrorUnterminatedString();
             if (ch == '\\') {
                 // TODO: Find out how to parse escaped characters
                 self.char_index += 2;
-                ch = self.peek(0) orelse return LexerError.UnterminatedString;
+                ch = self.peek(0) orelse return self.reportErrorUnterminatedString();
             }
-            if (ch == '\n') return LexerError.UnterminatedString;
+
+            if (ch == '\n') return self.reportErrorUnterminatedString();
         }
 
         // consume end string
@@ -384,9 +384,45 @@ pub const Lexer = struct {
         return self.makeToken(self.code[start..self.char_index], .StringLiteral);
     }
 
+    fn reportErrorUnterminatedString(self: *Lexer) LexError {
+        self.errors.report(
+            "unterminated string",
+            "This string is unterminated",
+            self.x_pos,
+            self.y_pos,
+            self.code,
+        );
+        return LexError.BadSyntax;
+    }
+
+    fn reportErrorUnknownOperator(self: *Lexer) LexError {
+        self.errors.report(
+            "unknown operator",
+            "This operator is unknown",
+            self.x_pos,
+            self.y_pos,
+            self.code,
+        );
+        return LexError.BadSyntax;
+    }
+
+    fn reportErrorUnexpected(self: *Lexer, comptime expect: []const u8) LexError {
+        self.errors.report(
+            "unexpected symbol",
+            "expecting " ++ expect,
+            self.x_pos,
+            self.y_pos,
+            self.code,
+        );
+        return LexError.BadSyntax;
+    }
+
     /// Returns a single token
-    fn scanToken(self: *Lexer) !luv.Token {
-        errdefer self.char_index += 1;
+    fn scanToken(self: *Lexer) LexError!luv.Token {
+        errdefer {
+            self.char_index += 1;
+            self.x_pos += 1;
+        }
 
         var ch: u8 = undefined;
         while (true) {
@@ -425,7 +461,70 @@ pub const Lexer = struct {
     }
 };
 
-// TODO: Test the errors!
+test "Error Recovery" {
+    const t = std.testing;
+    const code =
+        \\+===~-==~
+    ;
+
+    var l: Lexer = .init(code);
+    l.errors = ErrorReport{
+        .count = 0,
+        .capture = try .initCapacity(t.allocator, 32),
+    };
+    defer l.errors.capture.?.deinit(t.allocator);
+
+    var tok: luv.Token = undefined;
+
+    tok = try l.scanToken();
+    try t.expectEqual(.PlusEqual, tok.tt);
+
+    tok = try l.scanToken();
+    try t.expectEqual(.EqualEqual, tok.tt);
+
+    try t.expectError(LexError.BadSyntax, l.scanToken());
+
+    tok = try l.scanToken();
+    try t.expectEqual(.MinusEqual, tok.tt);
+
+    tok = try l.scanToken();
+    try t.expectEqual(.Equal, tok.tt);
+
+    try t.expectError(LexError.BadSyntax, l.scanToken());
+
+    const expected =
+        "error (1:4): unknown operator:\n" ++
+        "\t+===~-==~\n" ++
+        "\t    ^ This operator is unknown\n\n" ++
+        "error (1:8): unknown operator:\n" ++
+        "\t+===~-==~\n" ++
+        "\t        ^ This operator is unknown\n\n";
+
+    try t.expectEqualStrings(expected, l.errors.capture.?.items);
+}
+
+test "Basic Lex Error" {
+    const t = std.testing;
+    const code =
+        \\"Hello World!
+    ;
+
+    var l: Lexer = .init(code);
+    l.errors = ErrorReport{
+        .count = 0,
+        .capture = try .initCapacity(t.allocator, 32),
+    };
+    defer l.errors.capture.?.deinit(t.allocator);
+
+    try t.expectError(LexError.BadSyntax, l.scanToken());
+
+    const expected =
+        "error (1:0): unterminated string:\n" ++
+        "\t\"Hello World!\n" ++
+        "\t^ This string is unterminated\n\n";
+
+    try t.expectEqualStrings(expected, l.errors.capture.?.items);
+}
 
 test "Identifier Or Keyword" {
     const t = std.testing;
@@ -580,9 +679,7 @@ test "Primitive Token" {
     const t = std.testing;
     const tt = luv.TokenType;
 
-    var gpa = std.heap.DebugAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+    const allocator = std.testing.allocator;
 
     var l: Lexer = .empty;
 

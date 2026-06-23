@@ -4,34 +4,35 @@ pub const ErrorReport = struct {
     count: usize,
     capture: ?std.ArrayListUnmanaged(u8), // For testing
 
+    pub const empty = ErrorReport{
+        .count = 0,
+        .capture = null,
+    };
+
     pub fn report(
         self: *ErrorReport,
         comptime errheader: []const u8,
         comptime errmsg: ?[]const u8,
-        filename: ?[]const u8,
         x_pos: usize,
         y_pos: usize,
         code: []const u8,
     ) void {
         self.count += 1;
-        if (filename) |file| {
-            self.print(
-                "error ({s}:{d}:{d}): {s}:\n",
-                .{ file, y_pos + 1, x_pos, errheader },
-            );
-        } else {
-            self.print("error ({d}:{d}): {s}:\n", .{ y_pos + 1, x_pos, errheader });
-        }
+        self.print("error ({d}:{d}): {s}:\n", .{ y_pos + 1, x_pos, errheader });
 
-        const line = ErrorReport.getLine(y_pos, code) orelse return;
-        self.print("\t{s}\n\t", .{line});
-        for (0..x_pos) |_| {
-            self.print(" ", .{});
-        }
+        const line = getLine(y_pos, code);
+        std.debug.assert(line != null);
 
+        self.print("\t{s}\n", .{line.?});
         if (errmsg) |msg| {
+            self.print("\t", .{});
+            for (0..x_pos) |_| {
+                self.print(" ", .{});
+            }
+
             self.print("^ {s}\n", .{msg});
         }
+        self.print("\n", .{});
     }
 
     fn print(
@@ -66,7 +67,7 @@ pub const ErrorReport = struct {
             return null;
         } else if (end == null) {
             return code[start.?..];
-        } else if (start.? >= end.?) {
+        } else if (start.? > end.?) {
             return null;
         } else {
             return code[start.?..end.?];
@@ -74,3 +75,21 @@ pub const ErrorReport = struct {
     }
 };
 
+test "Getline" {
+    const t = std.testing;
+    const gl = ErrorReport.getLine;
+    const code =
+        \\
+        \\var x = "Hello world!"
+        \\
+        \\ 
+        // space at the last line
+    ;
+
+    try t.expectEqualStrings("", gl(0,code).?);
+    try t.expectEqualStrings("var x = \"Hello world!\"", gl(1,code).?);
+    try t.expectEqualStrings("", gl(2,code).?);
+    try t.expectEqualStrings(" ", gl(3,code).?);
+    try t.expect(gl(4,code) == null);
+
+}
