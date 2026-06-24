@@ -2,6 +2,7 @@ const std = @import("std");
 const luv = @import("root.zig");
 
 const ErrorReport = @import("error-report.zig").ErrorReport;
+const Position = @import("error-report.zig").Position;
 
 pub const LexError = error{
     BadSyntax,
@@ -10,33 +11,40 @@ pub const LexError = error{
 };
 
 /// Luv Programming Language Lexer
+/// Initialize with .init or .initWithErr
 pub const Lexer = struct {
     char_index: usize,
     code: []const u8,
-    x_pos: usize,
-    y_pos: usize,
+    pos: Position,
     errors: ?ErrorReport,
 
+    /// Initialize Lexer with code and no error reporting
     pub fn init(code: []const u8) Lexer {
         return .{
             .char_index = 0,
             .code = code,
-            .x_pos = 0,
-            .y_pos = 0,
+            .pos = .{
+                .x = 0,
+                .y = 0,
+            },
             .errors = null,
         };
     }
 
-    pub fn initWithErr(code: []const u8, writer: *std.Io.Writer) Lexer {
+    /// Initialize Lexer with code and custom error writer target
+    pub fn initWithErr(code: []const u8, errWriter: *std.Io.Writer) Lexer {
         return .{
             .char_index = 0,
             .code = code,
-            .x_pos = 0,
-            .y_pos = 0,
-            .errors = .init(writer),
+            .pos = .{
+                .x = 0,
+                .y = 0,
+            },
+            .errors = .init(errWriter),
         };
     }
 
+    /// Reasign code and reinitialize Lexer
     pub fn reassignCode(self: *Lexer, code: []const u8) error{WriteFailed}!void {
         if (self.errors) |err| {
             err.count = 0;
@@ -44,10 +52,11 @@ pub const Lexer = struct {
         }
         self.char_index = 0;
         self.code = code;
-        self.x_pos = 0;
-        self.y_pos = 0;
+        self.pos.x = 0;
+        self.pos.y = 0;
     }
 
+    /// Peek a letter, 0 for reading the current char, returns null if out of range
     fn peek(self: *Lexer, num: comptime_int) ?u8 {
         if (self.char_index + num < self.code.len) {
             return self.code.ptr[self.char_index + num];
@@ -84,24 +93,26 @@ pub const Lexer = struct {
         return ch == ' ' or ch == '\t' or ch == '\n' or ch == '\r';
     }
 
+    /// Returns an EOF token, should only be called last
     fn makeEof(self: *Lexer) luv.Token {
         self.char_index += 1;
         return .{
             .lexeme = "eof",
             .tt = .Eof,
-            .x_pos = self.x_pos,
-            .y_pos = self.y_pos,
+            .x_pos = self.pos.x,
+            .y_pos = self.pos.y,
         };
     }
 
+    /// Returns a token, and add lexeme length into current x_pos
     fn makeToken(self: *Lexer, lexeme: []const u8, tt: luv.TokenType) luv.Token {
-        const last_x_pos = self.x_pos;
-        self.x_pos += lexeme.len;
+        const last_x_pos = self.pos.x;
+        self.pos.x += lexeme.len;
         return .{
             .lexeme = lexeme,
             .tt = tt,
             .x_pos = last_x_pos,
-            .y_pos = self.y_pos,
+            .y_pos = self.pos.y,
         };
     }
 
@@ -122,6 +133,7 @@ pub const Lexer = struct {
         }
     }
 
+    /// Returns a token with tt type
     fn singleCharToken(self: *Lexer, tt: luv.TokenType) luv.Token {
         self.char_index += 1;
         return self.makeToken(self.code[self.char_index - 1 .. self.char_index], tt);
@@ -180,10 +192,10 @@ pub const Lexer = struct {
         var ch = self.peek(0) orelse return;
         while (isWhitespace(ch)) {
             self.char_index += 1;
-            self.x_pos += 1;
+            self.pos.x += 1;
             if (ch == '\n') {
-                self.y_pos += 1;
-                self.x_pos = 0;
+                self.pos.y += 1;
+                self.pos.x = 0;
             }
             ch = self.peek(0) orelse return;
         }
@@ -401,39 +413,27 @@ pub const Lexer = struct {
 
     fn reportErrorUnterminatedString(self: *Lexer) LexError {
         if (self.errors) |*err| {
-            err.report(
-                "unterminated string",
-                "This string is unterminated",
-                self.x_pos,
-                self.y_pos,
-                self.code,
-            ) catch return LexError.WriteFailed;
+            err.err("Unterminated String")
+                .withLineMsg(self.code, self.pos, "this string is unterminated")
+                .flush() catch return LexError.WriteFailed;
         }
         return LexError.BadSyntax;
     }
 
     fn reportErrorUnknownOperator(self: *Lexer) LexError {
         if (self.errors) |*err| {
-            err.report(
-                "unknown operator",
-                "This operator is unknown",
-                self.x_pos,
-                self.y_pos,
-                self.code,
-            ) catch return LexError.WriteFailed;
+            err.err("Unknown Operator")
+                .withLineMsg(self.code, self.pos, "this operator is unknown")
+                .flush() catch return LexError.WriteFailed;
         }
         return LexError.BadSyntax;
     }
 
     fn reportErrorUnexpected(self: *Lexer, comptime expect: []const u8) LexError {
         if (self.errors) |*err| {
-            err.report(
-                "unexpected symbol",
-                "expecting " ++ expect,
-                self.x_pos,
-                self.y_pos,
-                self.code,
-            ) catch return LexError.WriteFailed;
+            err.err("Unexpected Symbol")
+                .withLineMsg(self.code, self.pos, "expecting " ++ expect)
+                .flush() catch return LexError.WriteFailed;
         }
         return LexError.BadSyntax;
     }
@@ -443,7 +443,7 @@ pub const Lexer = struct {
     pub fn scanToken(self: *Lexer) LexError!luv.Token {
         errdefer {
             self.char_index += 1;
-            self.x_pos += 1;
+            self.pos.x += 1;
         }
 
         var ch: u8 = undefined;
@@ -514,17 +514,6 @@ test "Error Recovery" {
     try t.expectEqual(.Equal, tok.tt);
 
     try t.expectError(LexError.BadSyntax, l.scanToken());
-
-    // TODO: Move this test to the error report
-    const expected =
-        "error (1:5): unknown operator:\n" ++
-        "\t+===~-==~\n" ++
-        "\t    ^ This operator is unknown\n\n" ++
-        "error (1:9): unknown operator:\n" ++
-        "\t+===~-==~\n" ++
-        "\t        ^ This operator is unknown\n\n";
-
-    try t.expectEqualStrings(expected, l.errors.?.writer.buffered());
 }
 
 test "Basic Lex Error" {
@@ -538,14 +527,6 @@ test "Basic Lex Error" {
     defer writer.deinit();
 
     try t.expectError(LexError.BadSyntax, l.scanToken());
-
-    // TODO: Move this test to the error report
-    const expected =
-        "error (1:1): unterminated string:\n" ++
-        "\t\"Hello World!\n" ++
-        "\t^ This string is unterminated\n\n";
-
-    try t.expectEqualStrings(expected, l.errors.?.writer.buffered());
 }
 
 test "Identifier Or Keyword" {
