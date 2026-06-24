@@ -3,12 +3,14 @@ const builtin = @import("builtin");
 
 pub const ErrorReport = struct {
     count: usize,
-    capture: ?std.ArrayListUnmanaged(u8), // For testing
+    writer: *std.Io.Writer,
 
-    pub const empty = ErrorReport{
-        .count = 0,
-        .capture = null,
-    };
+    pub fn init(writer: *std.Io.Writer) ErrorReport {
+        return .{
+            .count = 0,
+            .writer = writer,
+        };
+    }
 
     pub fn report(
         self: *ErrorReport,
@@ -17,36 +19,25 @@ pub const ErrorReport = struct {
         x_pos: usize,
         y_pos: usize,
         code: []const u8,
-    ) void {
+    ) error{WriteFailed}!void {
+        // TODO: Make reporting more flexible
         self.count += 1;
-        self.print("error ({d}:{d}): {s}:\n", .{ y_pos + 1, x_pos, errheader });
+        try self.writer.print("error ({d}:{d}): {s}:\n", .{ y_pos + 1, x_pos + 1, errheader });
 
         const line = getLine(y_pos, code);
         std.debug.assert(line != null);
 
-        self.print("\t{s}\n", .{line.?});
+        try self.writer.print("\t{s}\n", .{line.?});
         if (errmsg) |msg| {
-            self.print("\t", .{});
+            try self.writer.print("\t", .{});
             for (0..x_pos) |_| {
-                self.print(" ", .{});
+                try self.writer.print(" ", .{});
             }
 
-            self.print("^ {s}\n", .{msg});
+            try self.writer.print("^ {s}\n", .{msg});
         }
-        self.print("\n", .{});
-    }
-
-    fn print(
-        self: *ErrorReport,
-        comptime fmt: []const u8,
-        args: anytype,
-    ) void {
-        if (builtin.is_test) {
-            std.debug.assert(self.capture != null);
-            self.captured.?.print(std.testing.allocator, fmt, args) catch @panic("Out Of Memory");
-        } else {
-            std.debug.print(fmt, args);
-        }
+        try self.writer.print("\n", .{});
+        try self.writer.flush();
     }
 
     fn getLine(y_pos: usize, code: []const u8) ?[]const u8 {
@@ -88,10 +79,9 @@ test "Getline" {
         // space at the last line
     ;
 
-    try t.expectEqualStrings("", gl(0,code).?);
-    try t.expectEqualStrings("var x = \"Hello world!\"", gl(1,code).?);
-    try t.expectEqualStrings("", gl(2,code).?);
-    try t.expectEqualStrings(" ", gl(3,code).?);
-    try t.expect(gl(4,code) == null);
-
+    try t.expectEqualStrings("", gl(0, code).?);
+    try t.expectEqualStrings("var x = \"Hello world!\"", gl(1, code).?);
+    try t.expectEqualStrings("", gl(2, code).?);
+    try t.expectEqualStrings(" ", gl(3, code).?);
+    try t.expect(gl(4, code) == null);
 }

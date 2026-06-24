@@ -6,22 +6,16 @@ const ErrorReport = @import("error-report.zig").ErrorReport;
 pub const LexError = error{
     BadSyntax,
     InternalErr,
+    WriteFailed,
 };
 
+/// Luv Programming Language Lexer
 pub const Lexer = struct {
     char_index: usize,
     code: []const u8,
     x_pos: usize,
     y_pos: usize,
-    errors: ErrorReport,
-
-    pub const empty = Lexer{
-        .char_index = 0,
-        .code = undefined,
-        .x_pos = 0,
-        .y_pos = 0,
-        .errors = .empty,
-    };
+    errors: ?ErrorReport,
 
     pub fn init(code: []const u8) Lexer {
         return .{
@@ -29,8 +23,29 @@ pub const Lexer = struct {
             .code = code,
             .x_pos = 0,
             .y_pos = 0,
-            .errors = .empty,
+            .errors = null,
         };
+    }
+
+    pub fn initWithErr(code: []const u8, writer: *std.Io.Writer) Lexer {
+        return .{
+            .char_index = 0,
+            .code = code,
+            .x_pos = 0,
+            .y_pos = 0,
+            .errors = .init(writer),
+        };
+    }
+
+    pub fn reassignCode(self: *Lexer, code: []const u8) error{WriteFailed}!void {
+        if (self.errors) |err| {
+            err.count = 0;
+            err.writer.consumeAll();
+        }
+        self.char_index = 0;
+        self.code = code;
+        self.x_pos = 0;
+        self.y_pos = 0;
     }
 
     fn peek(self: *Lexer, num: comptime_int) ?u8 {
@@ -385,35 +400,41 @@ pub const Lexer = struct {
     }
 
     fn reportErrorUnterminatedString(self: *Lexer) LexError {
-        self.errors.report(
-            "unterminated string",
-            "This string is unterminated",
-            self.x_pos,
-            self.y_pos,
-            self.code,
-        );
+        if (self.errors) |*err| {
+            err.report(
+                "unterminated string",
+                "This string is unterminated",
+                self.x_pos,
+                self.y_pos,
+                self.code,
+            ) catch return LexError.WriteFailed;
+        }
         return LexError.BadSyntax;
     }
 
     fn reportErrorUnknownOperator(self: *Lexer) LexError {
-        self.errors.report(
-            "unknown operator",
-            "This operator is unknown",
-            self.x_pos,
-            self.y_pos,
-            self.code,
-        );
+        if (self.errors) |*err| {
+            err.report(
+                "unknown operator",
+                "This operator is unknown",
+                self.x_pos,
+                self.y_pos,
+                self.code,
+            ) catch return LexError.WriteFailed;
+        }
         return LexError.BadSyntax;
     }
 
     fn reportErrorUnexpected(self: *Lexer, comptime expect: []const u8) LexError {
-        self.errors.report(
-            "unexpected symbol",
-            "expecting " ++ expect,
-            self.x_pos,
-            self.y_pos,
-            self.code,
-        );
+        if (self.errors) |*err| {
+            err.report(
+                "unexpected symbol",
+                "expecting " ++ expect,
+                self.x_pos,
+                self.y_pos,
+                self.code,
+            ) catch return LexError.WriteFailed;
+        }
         return LexError.BadSyntax;
     }
 
@@ -446,20 +467,20 @@ pub const Lexer = struct {
     }
 
     /// Tokenize the whole code, returns an allocated ArrayList using allocator
-    /// The tokens returned will have slices of the code argument as the lexeme
-    pub fn lex(
+    /// The tokens returned will have slices of self.code as the lexeme
+    pub fn lexAll(
         self: *Lexer,
         allocator: std.mem.Allocator,
-        code: []const u8,
     ) !std.ArrayList(luv.Token) {
-        self.code = code;
-
         var tokens = try std.ArrayList(luv.Token).initCapacity(allocator, 32);
-        errdefer tokens.deinit(allocator); 
+        errdefer tokens.deinit(allocator);
 
         while (self.char_index <= self.code.len) {
-            // TODO: Dont stop the execution when encountering LexError
-            try tokens.append(allocator, try self.scanToken());
+            const tok = self.scanToken() catch |err| switch (err) {
+                error.BadSyntax => continue,
+                else => return err,
+            };
+            try tokens.append(allocator, tok);
         }
 
         return tokens;
@@ -472,12 +493,9 @@ test "Error Recovery" {
         \\+===~-==~
     ;
 
-    var l: Lexer = .init(code);
-    l.errors = ErrorReport{
-        .count = 0,
-        .capture = try .initCapacity(t.allocator, 32),
-    };
-    defer l.errors.capture.?.deinit(t.allocator);
+    var writer = std.Io.Writer.Allocating.init(t.allocator);
+    var l: Lexer = .initWithErr(code, &writer.writer);
+    defer writer.deinit();
 
     var tok: luv.Token = undefined;
 
@@ -497,15 +515,16 @@ test "Error Recovery" {
 
     try t.expectError(LexError.BadSyntax, l.scanToken());
 
+    // TODO: Move this test to the error report
     const expected =
-        "error (1:4): unknown operator:\n" ++
+        "error (1:5): unknown operator:\n" ++
         "\t+===~-==~\n" ++
         "\t    ^ This operator is unknown\n\n" ++
-        "error (1:8): unknown operator:\n" ++
+        "error (1:9): unknown operator:\n" ++
         "\t+===~-==~\n" ++
         "\t        ^ This operator is unknown\n\n";
 
-    try t.expectEqualStrings(expected, l.errors.capture.?.items);
+    try t.expectEqualStrings(expected, l.errors.?.writer.buffered());
 }
 
 test "Basic Lex Error" {
@@ -514,21 +533,19 @@ test "Basic Lex Error" {
         \\"Hello World!
     ;
 
-    var l: Lexer = .init(code);
-    l.errors = ErrorReport{
-        .count = 0,
-        .capture = try .initCapacity(t.allocator, 32),
-    };
-    defer l.errors.capture.?.deinit(t.allocator);
+    var writer = std.Io.Writer.Allocating.init(t.allocator);
+    var l: Lexer = .initWithErr(code, &writer.writer);
+    defer writer.deinit();
 
     try t.expectError(LexError.BadSyntax, l.scanToken());
 
+    // TODO: Move this test to the error report
     const expected =
-        "error (1:0): unterminated string:\n" ++
+        "error (1:1): unterminated string:\n" ++
         "\t\"Hello World!\n" ++
         "\t^ This string is unterminated\n\n";
 
-    try t.expectEqualStrings(expected, l.errors.capture.?.items);
+    try t.expectEqualStrings(expected, l.errors.?.writer.buffered());
 }
 
 test "Identifier Or Keyword" {
@@ -686,15 +703,14 @@ test "Primitive Token" {
 
     const allocator = std.testing.allocator;
 
-    var l: Lexer = .empty;
-
     const code =
         \\*/+%&{}()[].,;?-<>!^=
         \\.. == -> != <= >=
         \\+= -= *= /= %=
     ;
 
-    var tokens = try l.lex(allocator, code);
+    var l: Lexer = .init(code);
+    var tokens = try l.lexAll(allocator);
     defer tokens.deinit(allocator);
 
     try t.expectEqual(33, tokens.items.len);
