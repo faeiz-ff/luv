@@ -417,8 +417,9 @@ pub const Lexer = struct {
         return LexError.BadSyntax;
     }
 
-    /// Returns a single token
-    fn scanToken(self: *Lexer) LexError!luv.Token {
+    /// Returns a single token, from the current char index slicing self.code
+    /// The tokens returned will have slices of the code  as the lexeme
+    pub fn scanToken(self: *Lexer) LexError!luv.Token {
         errdefer {
             self.char_index += 1;
             self.x_pos += 1;
@@ -444,6 +445,8 @@ pub const Lexer = struct {
         unreachable;
     }
 
+    /// Tokenize the whole code, returns an allocated ArrayList using allocator
+    /// The tokens returned will have slices of the code argument as the lexeme
     pub fn lex(
         self: *Lexer,
         allocator: std.mem.Allocator,
@@ -452,8 +455,10 @@ pub const Lexer = struct {
         self.code = code;
 
         var tokens = try std.ArrayList(luv.Token).initCapacity(allocator, 32);
+        errdefer tokens.deinit(allocator); 
 
         while (self.char_index <= self.code.len) {
+            // TODO: Dont stop the execution when encountering LexError
             try tokens.append(allocator, try self.scanToken());
         }
 

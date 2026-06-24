@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 
 pub const ErrorReport = struct {
     count: usize,
@@ -40,8 +41,9 @@ pub const ErrorReport = struct {
         comptime fmt: []const u8,
         args: anytype,
     ) void {
-        if (self.capture) |*captured| {
-            captured.print(std.testing.allocator, fmt, args) catch @panic("Out Of Memory");
+        if (builtin.is_test) {
+            std.debug.assert(self.capture != null);
+            self.captured.?.print(std.testing.allocator, fmt, args) catch @panic("Out Of Memory");
         } else {
             std.debug.print(fmt, args);
         }
