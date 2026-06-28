@@ -132,7 +132,6 @@ primaryExpr
     | ID
     | 'int' | 'flo' | 'str' | 'bol'
     | '(' expr ')'
-    | formatString
     ;
 
 objLiteral: '{' (('..' postFixExpr | 'def'? ID '=' expr) ','?)+ '}';
