@@ -1,13 +1,11 @@
 const std = @import("std");
 const luv = @import("root.zig");
 
-const ErrorReport = @import("error-report.zig").ErrorReport;
-const Position = @import("error-report.zig").Position;
-
 pub const LexError = error{
     BadSyntax,
     InternalErr,
     WriteFailed,
+    OutOfMemory,
 };
 
 /// Luv Programming Language Lexer
@@ -15,8 +13,8 @@ pub const LexError = error{
 pub const Lexer = struct {
     char_index: usize,
     code: []const u8,
-    pos: Position,
-    errors: ?ErrorReport,
+    pos: luv.Position,
+    errors: ?luv.ErrorReport,
 
     /// Initialize Lexer with code and no error reporting
     pub fn init(code: []const u8) Lexer {
@@ -48,7 +46,7 @@ pub const Lexer = struct {
     pub fn reassignCode(self: *Lexer, code: []const u8) error{WriteFailed}!void {
         if (self.errors) |err| {
             err.count = 0;
-            err.writer.consumeAll();
+            try err.writer.flush();
         }
         self.char_index = 0;
         self.code = code;
@@ -99,8 +97,10 @@ pub const Lexer = struct {
         return .{
             .lexeme = "eof",
             .tt = .Eof,
-            .x_pos = self.pos.x,
-            .y_pos = self.pos.y,
+            .pos = .{
+                .x = self.pos.x,
+                .y = self.pos.y,
+            },
         };
     }
 
@@ -111,8 +111,10 @@ pub const Lexer = struct {
         return .{
             .lexeme = lexeme,
             .tt = tt,
-            .x_pos = last_x_pos,
-            .y_pos = self.pos.y,
+            .pos = .{
+                .x = last_x_pos,
+                .y = self.pos.y,
+            },
         };
     }
 
@@ -471,7 +473,7 @@ pub const Lexer = struct {
     pub fn lexAll(
         self: *Lexer,
         allocator: std.mem.Allocator,
-    ) !std.ArrayList(luv.Token) {
+    ) LexError!std.ArrayList(luv.Token) {
         var tokens = try std.ArrayList(luv.Token).initCapacity(allocator, 32);
         errdefer tokens.deinit(allocator);
 
@@ -636,13 +638,13 @@ test "Comment Ignored" {
 
     tok = try l.scanToken();
     try t.expectEqualStrings("1", tok.lexeme);
-    try t.expectEqual(0, tok.y_pos);
-    try t.expectEqual(1, tok.x_pos);
+    try t.expectEqual(0, tok.pos.y);
+    try t.expectEqual(1, tok.pos.x);
 
     tok = try l.scanToken();
     try t.expectEqualStrings("*", tok.lexeme);
-    try t.expectEqual(2, tok.y_pos);
-    try t.expectEqual(2, tok.x_pos);
+    try t.expectEqual(2, tok.pos.y);
+    try t.expectEqual(2, tok.pos.x);
 }
 
 test "Correct X position and lines" {
@@ -658,24 +660,24 @@ test "Correct X position and lines" {
     var tok: luv.Token = undefined;
 
     tok = try l.scanToken();
-    try t.expectEqual(0, tok.x_pos);
-    try t.expectEqual(0, tok.y_pos);
+    try t.expectEqual(0, tok.pos.x);
+    try t.expectEqual(0, tok.pos.y);
 
     tok = try l.scanToken();
-    try t.expectEqual(2, tok.x_pos);
-    try t.expectEqual(0, tok.y_pos);
+    try t.expectEqual(2, tok.pos.x);
+    try t.expectEqual(0, tok.pos.y);
 
     tok = try l.scanToken();
-    try t.expectEqual(8, tok.x_pos);
-    try t.expectEqual(0, tok.y_pos);
+    try t.expectEqual(8, tok.pos.x);
+    try t.expectEqual(0, tok.pos.y);
 
     tok = try l.scanToken();
-    try t.expectEqual(3, tok.x_pos);
-    try t.expectEqual(1, tok.y_pos);
+    try t.expectEqual(3, tok.pos.x);
+    try t.expectEqual(1, tok.pos.y);
 
     tok = try l.scanToken();
-    try t.expectEqual(5, tok.x_pos);
-    try t.expectEqual(2, tok.y_pos);
+    try t.expectEqual(5, tok.pos.x);
+    try t.expectEqual(2, tok.pos.y);
 }
 
 test "Primitive Token" {

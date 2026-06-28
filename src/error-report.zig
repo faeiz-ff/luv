@@ -1,10 +1,5 @@
 const std = @import("std");
-const builtin = @import("builtin");
-
-pub const Position = struct {
-    x: usize,
-    y: usize,
-};
+const luv = @import("root.zig");
 
 /// Ansi Colors add reset to color it back to normal
 const Colors = struct {
@@ -100,7 +95,7 @@ pub const ErrorReport = struct {
     }
 
     /// Attach a file name with a position marker to the report
-    pub fn withFileName(self: *Self, filename: []const u8, pos: Position) *Self {
+    pub fn withFileName(self: *Self, filename: []const u8, pos: luv.Position) *Self {
         if (self.hasFailedWrite) return self;
 
         if (Ansi) {
@@ -118,7 +113,7 @@ pub const ErrorReport = struct {
     }
 
     /// Attach a line from a code with a positional hint to the report
-    pub fn withLineMsg(self: *Self, code: []const u8, pos: Position, errmsg: []const u8) *Self {
+    pub fn withLineMsg(self: *Self, code: []const u8, pos: luv.Position, errmsg: []const u8) *Self {
         if (self.hasFailedWrite) return self;
 
         const line = getLine(pos.y, code);
@@ -209,7 +204,7 @@ test "chaining" {
         \\var x = "Hello world!
     ;
 
-    const pos = Position{
+    const pos = luv.Position{
         .x = 8,
         .y = 0,
     };

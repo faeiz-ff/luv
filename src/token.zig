@@ -1,10 +1,11 @@
 const std = @import("std");
 
+pub const Position = struct { x: usize, y: usize };
+
 pub const Token = struct {
-    tt: TokenType, 
+    tt: TokenType,
     lexeme: []const u8,
-    x_pos: usize,
-    y_pos: usize,
+    pos: Position,
 };
 
 pub const TokenType = enum {
