@@ -66,20 +66,175 @@ pub const Parser = struct {
         return false;
     }
 
+    fn matchOne(self: *Parser, tt: luv.TokenType) bool {
+        if (self.peek(0).tt == tt) {
+            return true;
+        }
+        return false;
+    }
+
     fn expect(self: *Parser, tt: luv.TokenType, comptime errMsg: []const u8) ParseError!void {
         const tok = self.peek(0);
         if (tok.tt == tt) {
             return;
         }
 
-        if (self.errors) |err| {
+        if (self.errors) |*err| {
             try err
                 .err("Unexpected token")
-                .withLineMsg(self.code, tok.pos, errMsg)
+                .withLineMsg(self.code.?, tok.pos, errMsg)
                 .flush();
         }
 
         return ParseError.BadSyntax;
+    }
+
+    fn tupleOrGrouping(self: *Parser) ParseError!*luv.AST {
+        const tok = self.peek(0);
+        self.token_index += 1;
+
+        if (self.matchOne(.Rsquare)) {
+            const rsquare = self.peek(0);
+            self.token_index += 1;
+            const alloced = try self.allocator.create(luv.AST);
+            alloced.* = luv.AST{
+                .TupleType = .{ .types = .empty, .lsquare = tok, .rsquare = rsquare },
+            };
+            return alloced;
+        }
+
+        var typ = try self.typeRule();
+
+        if (self.matchOne(.Comma)) {
+            var types: std.ArrayList(*luv.AST) = try .initCapacity(self.allocator, 4);
+            try types.append(self.allocator, typ);
+
+            while (self.matchOne(.Comma)) {
+                self.token_index += 1;
+                typ = try self.typeRule();
+                try types.append(self.allocator, typ);
+            }
+
+            try self.expect(.Rsquare, "Expecting a right square bracket for closing tuple type");
+            const rsquare = self.peek(0);
+            self.token_index += 1;
+
+            const alloced = try self.allocator.create(luv.AST);
+            alloced.* = luv.AST{
+                .TupleType = .{ .types = types, .lsquare = tok, .rsquare = rsquare },
+            };
+            return alloced;
+        }
+
+        try self.expect(.Rsquare, "Expecting a right square bracket for closing type grouping");
+        self.token_index += 1;
+
+        return typ;
+    }
+
+    fn typBase(self: *Parser) ParseError!*luv.AST {
+        const tok = self.peek(0);
+        switch (tok.tt) {
+            .Identifier => {
+                var alloced = try self.allocator.create(luv.AST);
+                alloced.* = luv.AST{ .Identifier = tok };
+                var typ = alloced;
+
+                self.token_index += 1;
+
+                while (self.match(&[_]luv.TokenType{.Dot})) {
+                    const op = self.peek(0);
+                    self.token_index += 1;
+
+                    try self.expect(.Identifier, "Expecting an Identifier after a dot '.' in type expression");
+                    const rhs = self.peek(0);
+                    self.token_index += 1;
+
+                    alloced = try self.allocator.create(luv.AST);
+                    alloced.* = luv.AST{ .DotAccess = .{ .lhs = typ, .op = op, .rhs = rhs } };
+
+                    typ = alloced;
+                }
+                return typ;
+            },
+            .Lsquare => return self.tupleOrGrouping(),
+
+            // TODO
+            else => return error.BadSyntax,
+        }
+    }
+
+    fn typePostFix(self: *Parser) ParseError!*luv.AST {
+        var typ = try self.typBase();
+
+        while (true) {
+            const tok = self.peek(0);
+            switch (tok.tt) {
+                .QuestionMark => {
+                    self.token_index += 1;
+                    const alloced = try self.allocator.create(luv.AST);
+                    alloced.* = luv.AST{ .OptionalType = .{ .op = tok, .node = typ } };
+                    typ = alloced;
+                },
+                .Ampersand => {
+                    self.token_index += 1;
+                    const alloced = try self.allocator.create(luv.AST);
+                    alloced.* = luv.AST{ .ViewType = .{ .op = tok, .node = typ } };
+                    typ = alloced;
+                },
+                .Lsquare => typ = try self.genericFulfillment(typ),
+                else => break,
+            }
+        }
+        return typ;
+    }
+
+    fn typeRule(self: *Parser) ParseError!*luv.AST {
+        var typ = try self.typePostFix();
+
+        if (self.matchOne(.Bang)) {
+            const tok = self.peek(0);
+            self.token_index += 1;
+
+            const rhs = try self.typePostFix();
+
+            const alloced = try self.allocator.create(luv.AST);
+            alloced.* = luv.AST{ .ResultType = .{ .op = tok, .lhs = typ, .rhs = rhs } };
+            typ = alloced;
+        }
+
+        return typ;
+    }
+
+    fn genericFulfillment(self: *Parser, lhs: *luv.AST) ParseError!*luv.AST {
+        const lsquare = self.peek(0);
+        self.token_index += 1;
+
+        var typ = try self.typeRule();
+
+        var types: std.ArrayList(*luv.AST) = try .initCapacity(self.allocator, 4);
+        try types.append(self.allocator, typ);
+
+        while (self.matchOne(.Comma)) {
+            self.token_index += 1;
+            typ = try self.typeRule();
+            try types.append(self.allocator, typ);
+        }
+
+        try self.expect(.Rsquare, "Expecting a right square bracket for closing generic fulfillment");
+        const rsquare = self.peek(0);
+        self.token_index += 1;
+
+        const alloced = try self.allocator.create(luv.AST);
+        alloced.* = luv.AST{
+            .GenericFulfill = .{
+                .node = lhs,
+                .args = types,
+                .lsquare = lsquare,
+                .rsquare = rsquare,
+            },
+        };
+        return alloced;
     }
 
     fn primaryExpr(self: *Parser) ParseError!*luv.AST {
@@ -107,6 +262,32 @@ pub const Parser = struct {
         }
     }
 
+    fn postFixExpr(self: *Parser) ParseError!*luv.AST {
+        var expr = try self.primaryExpr();
+
+        while (true) {
+            const tok = self.peek(0);
+            switch (tok.tt) {
+                .QuestionMark => {
+                    self.token_index += 1;
+                    const alloced = try self.allocator.create(luv.AST);
+                    alloced.* = luv.AST{ .QuestionMarkPostFix = .{ .op = tok, .node = expr } };
+                    expr = alloced;
+                },
+                .Bang => {
+                    self.token_index += 1;
+                    const alloced = try self.allocator.create(luv.AST);
+                    alloced.* = luv.AST{ .BangPostFix = .{ .op = tok, .node = expr } };
+                    expr = alloced;
+                },
+                .Lsquare => expr = try self.genericFulfillment(expr),
+                // TODO
+                else => break,
+            }
+        }
+        return expr;
+    }
+
     fn unaryExpr(self: *Parser) ParseError!*luv.AST {
         if (self.match(&[_]luv.TokenType{ .Not, .Minus })) {
             const tok = self.peek(0);
@@ -115,22 +296,21 @@ pub const Parser = struct {
             const rhs = try self.unaryExpr();
 
             const alloced = try self.allocator.create(luv.AST);
-            alloced.* = luv.AST{ .Unary = .{ .op = tok, .rhs = rhs } };
+            alloced.* = luv.AST{ .UnaryPrefix = .{ .op = tok, .node = rhs } };
             return alloced;
         }
 
-        // TODO: should be postfix
-        return self.primaryExpr();
+        return self.postFixExpr();
     }
 
     fn factorExpr(self: *Parser) ParseError!*luv.AST {
-        var expr = try self.primaryExpr();
+        var expr = try self.unaryExpr();
 
         while (self.match(&[_]luv.TokenType{ .Asterisk, .Solidus, .Modulus })) {
             const tok = self.peek(0);
             self.token_index += 1;
 
-            const rhs = try self.primaryExpr();
+            const rhs = try self.unaryExpr();
 
             const alloced = try self.allocator.create(luv.AST);
             alloced.* = luv.AST{ .Arithmetic = .{ .lhs = expr, .op = tok, .rhs = rhs } };
@@ -184,7 +364,7 @@ pub const Parser = struct {
     fn andExpr(self: *Parser) ParseError!*luv.AST {
         var expr = try self.relationalExpr();
 
-        while (self.match(&[_]luv.TokenType{.And})) {
+        while (self.matchOne(.And)) {
             const tok = self.peek(0);
             self.token_index += 1;
 
@@ -201,7 +381,7 @@ pub const Parser = struct {
     fn orExpr(self: *Parser) ParseError!*luv.AST {
         var expr = try self.andExpr();
 
-        while (self.match(&[_]luv.TokenType{.Or})) {
+        while (self.matchOne(.Or)) {
             const tok = self.peek(0);
             self.token_index += 1;
 
@@ -249,7 +429,40 @@ pub const Parser = struct {
     }
 };
 
-test "from lexer" {
+test "generic fulfillment" {
+    const t = std.testing;
+
+    const code =
+        \\Square[[Fraction, []]]
+    ;
+
+    var l: luv.Lexer = .init(code);
+
+    var toks = try l.lexAll(t.allocator);
+    defer toks.deinit(t.allocator);
+
+    var p: Parser = .init(toks.items);
+
+    var ast = try p.parse(t.allocator);
+    defer ast.deinit(t.allocator);
+
+    var node = ast;
+    try t.expect(node.* == .GenericFulfill);
+    try t.expect(node.GenericFulfill.node.* == .Identifier);
+    try t.expectEqualStrings("Square", node.GenericFulfill.node.Identifier.lexeme);
+    try t.expectEqual(1, node.GenericFulfill.args.items.len);
+
+    node = node.GenericFulfill.args.items.ptr[0];
+    try t.expect(node.* == .TupleType);
+    try t.expectEqual(2, node.TupleType.types.items.len);
+
+    try t.expect(node.TupleType.types.items.ptr[0].* == .Identifier);
+    try t.expectEqualStrings("Fraction", node.TupleType.types.items.ptr[0].Identifier.lexeme);
+
+    try t.expect(node.TupleType.types.items.ptr[1].* == .TupleType);
+}
+
+test "assignment and arithmetic" {
     const t = std.testing;
 
     const code =
@@ -264,8 +477,8 @@ test "from lexer" {
     var p: Parser = .init(toks.items);
 
     var ast = try p.parse(t.allocator);
-    defer ast.free(t.allocator);
-    
+    defer ast.deinit(t.allocator);
+
     var node = ast;
     try t.expect(node.* == .Assignment);
     try t.expect(node.Assignment.lhs.* == .Identifier);
@@ -307,7 +520,7 @@ test "Basic functionality" {
     var p: Parser = .init(toks);
 
     const ast = try p.parse(t.allocator);
-    defer ast.free(t.allocator);
+    defer ast.deinit(t.allocator);
 
     try t.expect(ast.* == .Arithmetic);
     try t.expect(ast.Arithmetic.lhs.* == .IntLiteral);
