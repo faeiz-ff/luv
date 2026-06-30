@@ -1,42 +1,28 @@
 const std = @import("std");
 const luv = @import("root.zig");
 
-pub const AST = union(enum) {
-    const Binary = struct {
-        lhs: *AST,
-        op: luv.Token,
-        rhs: *AST,
-    };
-
-    const Unary = struct {
-        op: luv.Token,
-        node: *AST,
-    };
-
+pub const IR = union(enum) {
     IntLiteral: luv.Token,
     FloatLiteral: luv.Token,
     StringLiteral: luv.Token,
     Identifier: luv.Token,
-    Arithmetic: Binary,
-    Assignment: Binary,
-    LogicBinary: Binary,
-    Relational: Binary,
-    UnaryPrefix: Unary,
-    QuestionMarkPostFix: Unary,
-    BangPostFix: Unary,
+    Arithmetic: luv.Token,
+    Assignment: luv.Token,
+    LogicBinary: luv.Token,
+    Relational: luv.Token,
+    UnaryPrefix: luv.Token,
+    QuestionMarkPostFix: luv.Token,
+    BangPostFix: luv.Token,
     GenericFulfill: struct {
-        node: *AST,
-        args: std.ArrayList(*AST),
-        lsquare: luv.Token,
-        rsquare: luv.Token,
+        argc: usize,
+        lsquare_pos: luv.Position,
     },
-    DotAccess: struct { lhs: *AST, op: luv.Token, rhs: luv.Token },
+    DotAccess: luv.Token,
     TupleType: struct {
-        types: std.ArrayList(*AST),
-        lsquare: luv.Token,
-        rsquare: luv.Token,
+        argc: usize,
+        lsquare_pos: luv.Position,
     },
-    ResultType: Binary,
-    OptionalType: Unary,
-    ViewType: Unary,
+    ResultType: luv.Token,
+    OptionalType: luv.Token,
+    ViewType: luv.Token,
 };
