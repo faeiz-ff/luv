@@ -16,42 +16,16 @@ pub const Lexer = struct {
     pos: luv.Position,
     errors: ?luv.ErrorReport,
 
-    /// Initialize Lexer with code and no error reporting
-    pub fn init(code: []const u8) Lexer {
-        return .{
-            .char_index = 0,
-            .code = code,
-            .pos = .{
-                .x = 0,
-                .y = 0,
-            },
-            .errors = null,
-        };
-    }
+    pub const empty: Lexer = .{
+        .char_index = 0,
+        .code = undefined,
+        .pos = .{ .x = 0, .y = 0, },
+        .errors = null,
+    };
 
-    /// Initialize Lexer with code and custom error writer target
-    pub fn initWithErr(code: []const u8, errWriter: *std.Io.Writer) Lexer {
-        return .{
-            .char_index = 0,
-            .code = code,
-            .pos = .{
-                .x = 0,
-                .y = 0,
-            },
-            .errors = .init(errWriter),
-        };
-    }
-
-    /// Reasign code and reinitialize Lexer
-    pub fn reassignCode(self: *Lexer, code: []const u8) error{WriteFailed}!void {
-        if (self.errors) |err| {
-            err.count = 0;
-            try err.writer.flush();
-        }
-        self.char_index = 0;
-        self.code = code;
-        self.pos.x = 0;
-        self.pos.y = 0;
+    /// Assign custom error writer target to lexer
+    pub fn assignErr(self: *Lexer, errWriter: *std.Io.Writer) void {
+        self.errors = .init(errWriter);
     }
 
     /// Peek a letter, 0 for reading the current char, returns null if out of range
@@ -442,7 +416,7 @@ pub const Lexer = struct {
 
     /// Returns a single token, from the current char index slicing self.code
     /// The tokens returned will have slices of the code  as the lexeme
-    pub fn scanToken(self: *Lexer) LexError!luv.Token {
+    fn scanToken(self: *Lexer) LexError!luv.Token {
         errdefer {
             self.char_index += 1;
             self.pos.x += 1;
@@ -473,8 +447,11 @@ pub const Lexer = struct {
     pub fn lexAll(
         self: *Lexer,
         allocator: std.mem.Allocator,
+        code: []const u8,
     ) LexError!std.ArrayList(luv.Token) {
-        var tokens = try std.ArrayList(luv.Token).initCapacity(allocator, 32);
+        self.code = code;
+
+        var tokens = try std.ArrayList(luv.Token).initCapacity(allocator, 64);
         errdefer tokens.deinit(allocator);
 
         while (self.char_index <= self.code.len) {
@@ -496,8 +473,11 @@ test "Error Recovery" {
     ;
 
     var writer = std.Io.Writer.Allocating.init(t.allocator);
-    var l: Lexer = .initWithErr(code, &writer.writer);
     defer writer.deinit();
+
+    var l: Lexer = .empty;
+    l.assignErr(&writer.writer);
+    l.code = code; // For test only
 
     var tok: luv.Token = undefined;
 
@@ -525,8 +505,11 @@ test "Basic Lex Error" {
     ;
 
     var writer = std.Io.Writer.Allocating.init(t.allocator);
-    var l: Lexer = .initWithErr(code, &writer.writer);
     defer writer.deinit();
+
+    var l: Lexer = .empty;
+    l.assignErr(&writer.writer);
+    l.code = code; // For test only
 
     try t.expectError(LexError.BadSyntax, l.scanToken());
 }
@@ -554,7 +537,9 @@ test "Identifier Or Keyword" {
         .Bol,   .Str,    .Int,  .Vec,
     };
 
-    var l: Lexer = .init(code);
+    var l: Lexer = .empty;
+    l.code = code; // For test only
+
     var tok: luv.Token = undefined;
 
     for (0..keywords.len) |i| {
@@ -572,7 +557,9 @@ test "Basic string" {
         \\"hello"
     ;
 
-    var l: Lexer = .init(code);
+    var l: Lexer = .empty;
+    l.code = code; // For test only
+
     var tok: luv.Token = undefined;
 
     tok = try l.scanToken();
@@ -610,7 +597,9 @@ test "Forms of Numbers" {
         \\100_000e-10
     ;
 
-    var l: Lexer = .init(code);
+    var l: Lexer = .empty;
+    l.code = code; // For test only
+
     var tok: luv.Token = undefined;
 
     for (0..9) |_| {
@@ -633,7 +622,9 @@ test "Comment Ignored" {
         \\  *##
     ;
 
-    var l: Lexer = .init(code);
+    var l: Lexer = .empty;
+    l.code = code; // For test only
+
     var tok: luv.Token = undefined;
 
     tok = try l.scanToken();
@@ -656,7 +647,9 @@ test "Correct X position and lines" {
         \\     %
     ;
 
-    var l: Lexer = .init(code);
+    var l: Lexer = .empty;
+    l.code = code; // For test only
+
     var tok: luv.Token = undefined;
 
     tok = try l.scanToken();
@@ -692,8 +685,9 @@ test "Primitive Token" {
         \\+= -= *= /= %=
     ;
 
-    var l: Lexer = .init(code);
-    var tokens = try l.lexAll(allocator);
+    var l: Lexer = .empty;
+
+    var tokens = try l.lexAll(allocator, code);
     defer tokens.deinit(allocator);
 
     try t.expectEqual(33, tokens.items.len);

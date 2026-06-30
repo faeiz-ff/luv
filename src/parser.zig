@@ -7,11 +7,6 @@ pub const ParseError = error{
     BadSyntax,
 };
 
-pub const ParseResult = struct {
-    arena: std.heap.ArenaAllocator,
-    ast: *luv.IR,
-};
-
 pub const Parser = struct {
     tokens: []const luv.Token,
     token_index: usize,
@@ -398,9 +393,9 @@ test "error no leak" {
         \\Parser[Parser[Parser[Parser[[]]]]
     ;
 
-    var l: luv.Lexer = .init(code);
+    var l: luv.Lexer = .empty;
 
-    var toks = try l.lexAll(t.allocator);
+    var toks = try l.lexAll(t.allocator, code);
     defer toks.deinit(t.allocator);
 
     var p: Parser = .empty;
@@ -415,9 +410,9 @@ test "postfixes" {
         \\ a?!?!
     ;
 
-    var l: luv.Lexer = .init(code);
+    var l: luv.Lexer = .empty;
 
-    var toks = try l.lexAll(t.allocator);
+    var toks = try l.lexAll(t.allocator, code);
     defer toks.deinit(t.allocator);
 
     var p: Parser = .empty;
@@ -445,9 +440,9 @@ test "basic functionality" {
         \\ c = a + b
     ;
 
-    var l: luv.Lexer = .init(code);
+    var l: luv.Lexer = .empty;
 
-    var toks = try l.lexAll(t.allocator);
+    var toks = try l.lexAll(t.allocator, code);
     defer toks.deinit(t.allocator);
 
     var p: Parser = .empty;
