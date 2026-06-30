@@ -7,12 +7,20 @@ pub const ParseError = error{
     BadSyntax,
 };
 
+pub const ParseResult = struct {
+    arena: std.heap.ArenaAllocator,
+    ast: *luv.AST,
+};
+
 pub const Parser = struct {
     tokens: []const luv.Token,
     token_index: usize,
-    allocator: std.mem.Allocator,
     code: ?[]const u8,
     errors: ?luv.ErrorReport,
+
+    /// DONT SET THIS UP, RESERVED FOR ARENA ALLOCATOR's CHILD
+    /// DONT USE IT OUTSIDE THE STRUCT
+    allocator: std.mem.Allocator,
 
     /// Initialize Parser with tokens and no error reporting
     pub fn init(tokens: []const luv.Token) Parser {
@@ -104,26 +112,15 @@ pub const Parser = struct {
         }
 
         var typ = try self.typeRule();
-        errdefer typ.deinit(self.allocator);
 
         if (self.matchOne(.Comma)) {
             var types: std.ArrayList(*luv.AST) = try .initCapacity(self.allocator, 4);
-            errdefer {
-                for (types.items) |ty| {
-                    ty.deinit(self.allocator);
-                }
-                types.deinit(self.allocator);
-            }
 
             try types.append(self.allocator, typ);
 
             while (self.matchOne(.Comma)) {
                 self.token_index += 1;
                 typ = try self.typeRule();
-                errdefer typ.deinit(self.allocator);
-                // if the below statement fails, typ is not going in types arraylist
-                // outer errdefer will take care of the typ in types arraylist
-
                 try types.append(self.allocator, typ);
             }
 
@@ -150,7 +147,6 @@ pub const Parser = struct {
             .Identifier => {
                 var typ = try self.allocator.create(luv.AST);
                 typ.* = luv.AST{ .Identifier = tok };
-                errdefer typ.deinit(self.allocator);
 
                 self.token_index += 1;
 
@@ -178,7 +174,6 @@ pub const Parser = struct {
 
     fn typePostFix(self: *Parser) ParseError!*luv.AST {
         var typ = try self.typBase();
-        errdefer typ.deinit(self.allocator);
 
         while (true) {
             const tok = self.peek(0);
@@ -204,14 +199,12 @@ pub const Parser = struct {
 
     fn typeRule(self: *Parser) ParseError!*luv.AST {
         var typ = try self.typePostFix();
-        errdefer typ.deinit(self.allocator);
 
         if (self.matchOne(.Bang)) {
             const tok = self.peek(0);
             self.token_index += 1;
 
             const rhs = try self.typePostFix();
-            errdefer rhs.deinit(self.allocator);
 
             const alloced = try self.allocator.create(luv.AST);
             alloced.* = luv.AST{ .ResultType = .{ .op = tok, .lhs = typ, .rhs = rhs } };
@@ -228,27 +221,13 @@ pub const Parser = struct {
         var typ = try self.typeRule();
 
         var types: std.ArrayList(*luv.AST) = try .initCapacity(self.allocator, 4);
-        errdefer {
-            for (types.items) |ty| {
-                ty.deinit(self.allocator);
-            }
-            types.deinit(self.allocator);
-        }
 
-        types.append(self.allocator, typ) catch {
-            // if the append above fails, typ is not in types arraylist
-            // it needs to be freed in this specific place so the types
-            // errdefer does not double free typ
-            typ.deinit(self.allocator);
-            return error.OutOfMemory;
-        };
+        try types.append(self.allocator, typ);
 
         while (self.matchOne(.Comma)) {
             self.token_index += 1;
-            const othertyp = try self.typeRule();
-            errdefer othertyp.deinit(self.allocator);
-
-            try types.append(self.allocator, othertyp);
+            typ = try self.typeRule();
+            try types.append(self.allocator, typ);
         }
 
         try self.expect(.Rsquare, "Expecting a right square bracket for closing generic fulfillment");
@@ -294,7 +273,6 @@ pub const Parser = struct {
 
     fn postFixExpr(self: *Parser) ParseError!*luv.AST {
         var expr = try self.primaryExpr();
-        errdefer expr.deinit(self.allocator);
 
         while (true) {
             const tok = self.peek(0);
@@ -325,7 +303,6 @@ pub const Parser = struct {
             self.token_index += 1;
 
             const rhs = try self.unaryExpr();
-            errdefer rhs.deinit(self.allocator);
 
             const alloced = try self.allocator.create(luv.AST);
             alloced.* = luv.AST{ .UnaryPrefix = .{ .op = tok, .node = rhs } };
@@ -337,14 +314,12 @@ pub const Parser = struct {
 
     fn factorExpr(self: *Parser) ParseError!*luv.AST {
         var expr = try self.unaryExpr();
-        errdefer expr.deinit(self.allocator);
 
         while (self.match(&[_]luv.TokenType{ .Asterisk, .Solidus, .Modulus })) {
             const tok = self.peek(0);
             self.token_index += 1;
 
             const rhs = try self.unaryExpr();
-            errdefer rhs.deinit(self.allocator);
 
             const alloced = try self.allocator.create(luv.AST);
             alloced.* = luv.AST{ .Arithmetic = .{ .lhs = expr, .op = tok, .rhs = rhs } };
@@ -356,14 +331,12 @@ pub const Parser = struct {
 
     fn termExpr(self: *Parser) ParseError!*luv.AST {
         var expr = try self.factorExpr();
-        errdefer expr.deinit(self.allocator);
 
         while (self.match(&[_]luv.TokenType{ .Plus, .Minus })) {
             const tok = self.peek(0);
             self.token_index += 1;
 
             const rhs = try self.factorExpr();
-            errdefer rhs.deinit(self.allocator);
 
             const alloced = try self.allocator.create(luv.AST);
             alloced.* = luv.AST{ .Arithmetic = .{ .lhs = expr, .op = tok, .rhs = rhs } };
@@ -375,7 +348,6 @@ pub const Parser = struct {
 
     fn relationalExpr(self: *Parser) ParseError!*luv.AST {
         var expr = try self.termExpr();
-        errdefer expr.deinit(self.allocator);
 
         while (self.match(&[_]luv.TokenType{
             .Less,
@@ -389,7 +361,6 @@ pub const Parser = struct {
             self.token_index += 1;
 
             const rhs = try self.termExpr();
-            errdefer rhs.deinit(self.allocator);
 
             const alloced = try self.allocator.create(luv.AST);
             alloced.* = luv.AST{ .Relational = .{ .lhs = expr, .op = tok, .rhs = rhs } };
@@ -401,14 +372,12 @@ pub const Parser = struct {
 
     fn andExpr(self: *Parser) ParseError!*luv.AST {
         var expr = try self.relationalExpr();
-        errdefer expr.deinit(self.allocator);
 
         while (self.matchOne(.And)) {
             const tok = self.peek(0);
             self.token_index += 1;
 
             const rhs = try self.relationalExpr();
-            errdefer rhs.deinit(self.allocator);
 
             const alloced = try self.allocator.create(luv.AST);
             alloced.* = luv.AST{ .LogicBinary = .{ .lhs = expr, .op = tok, .rhs = rhs } };
@@ -420,14 +389,12 @@ pub const Parser = struct {
 
     fn orExpr(self: *Parser) ParseError!*luv.AST {
         var expr = try self.andExpr();
-        errdefer expr.deinit(self.allocator);
 
         while (self.matchOne(.Or)) {
             const tok = self.peek(0);
             self.token_index += 1;
 
             const rhs = try self.andExpr();
-            errdefer rhs.deinit(self.allocator);
 
             const alloced = try self.allocator.create(luv.AST);
             alloced.* = luv.AST{ .LogicBinary = .{ .lhs = expr, .op = tok, .rhs = rhs } };
@@ -439,7 +406,6 @@ pub const Parser = struct {
 
     fn assignmentExpr(self: *Parser) ParseError!*luv.AST {
         var expr = try self.orExpr();
-        errdefer expr.deinit(self.allocator);
 
         if (self.match(&[_]luv.TokenType{
             .Equal,
@@ -453,7 +419,6 @@ pub const Parser = struct {
             self.token_index += 1;
 
             const rhs = try self.expression();
-            errdefer rhs.deinit(self.allocator);
 
             const alloced = try self.allocator.create(luv.AST);
             alloced.* = luv.AST{ .Assignment = .{ .lhs = expr, .op = tok, .rhs = rhs } };
@@ -467,9 +432,18 @@ pub const Parser = struct {
         return self.assignmentExpr();
     }
 
-    pub fn parse(self: *Parser, allocator: std.mem.Allocator) ParseError!*luv.AST {
-        self.allocator = allocator;
-        return self.expression();
+    /// Parse a stream of tokens, if not errored, returns an AST and an ArenaAllocator to destroy it.
+    pub fn parse(self: *Parser, allocator: std.mem.Allocator) ParseError!ParseResult {
+        var arena = std.heap.ArenaAllocator.init(allocator);
+        errdefer arena.deinit();
+
+        self.allocator = arena.allocator();
+        const ast = try self.expression();
+
+        return ParseResult{
+            .arena = arena,
+            .ast = ast,
+        };
     }
 };
 
@@ -504,8 +478,10 @@ test "generic fulfillment" {
 
     var p: Parser = .init(toks.items);
 
-    var ast = try p.parse(t.allocator);
-    defer ast.deinit(t.allocator);
+    const result = try p.parse(t.allocator);
+    defer result.arena.deinit();
+
+    const ast = result.ast;
 
     var node = ast;
     try t.expect(node.* == .GenericFulfill);
@@ -537,8 +513,10 @@ test "assignment and arithmetic" {
 
     var p: Parser = .init(toks.items);
 
-    var ast = try p.parse(t.allocator);
-    defer ast.deinit(t.allocator);
+    const result = try p.parse(t.allocator);
+    defer result.arena.deinit();
+
+    const ast = result.ast;
 
     var node = ast;
     try t.expect(node.* == .Assignment);
@@ -580,9 +558,10 @@ test "Basic functionality" {
 
     var p: Parser = .init(toks);
 
-    const ast = try p.parse(t.allocator);
-    defer ast.deinit(t.allocator);
+    const result = try p.parse(t.allocator);
+    defer result.arena.deinit();
 
+    const ast = result.ast;
     try t.expect(ast.* == .Arithmetic);
     try t.expect(ast.Arithmetic.lhs.* == .IntLiteral);
     try t.expect(ast.Arithmetic.op.tt == .Plus);
