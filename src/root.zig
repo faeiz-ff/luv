@@ -7,6 +7,7 @@ pub const Position = @import("token.zig").Position;
 pub const Lexer = @import("lexer.zig").Lexer;
 pub const ErrorReport = @import("error-report.zig").ErrorReport;
 pub const IR = @import("ast.zig").IR;
+pub const IRType = @import("ast.zig").IRType;
 pub const Parser = @import("parser.zig").Parser;
 
 test {
