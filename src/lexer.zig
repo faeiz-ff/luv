@@ -19,7 +19,10 @@ pub const Lexer = struct {
     pub const empty: Lexer = .{
         .char_index = 0,
         .code = undefined,
-        .pos = .{ .x = 0, .y = 0, },
+        .pos = .{
+            .x = 0,
+            .y = 0,
+        },
         .errors = null,
     };
 
@@ -187,88 +190,60 @@ pub const Lexer = struct {
         }
     }
 
-    fn strEq(s1: []const u8, s2: []const u8) bool {
-        return std.mem.order(u8, s1, s2) == std.math.Order.eq;
+    fn matchKeyword(self: *Lexer, start: usize, end: usize, comptime tt: luv.TokenType) ?luv.TokenType {
+        if (std.mem.order(u8, self.code[start .. end], @tagName(tt)) == .eq) {
+            return tt;
+        } else {
+            return null;
+        }
+    }
+
+    fn matchKeywords(self: *Lexer, start: usize, end: usize, comptime tts: []const luv.TokenType) ?luv.TokenType {
+        inline for (tts) |tt| {
+            if (std.mem.order(u8, self.code[start .. end], @tagName(tt)) == .eq) return tt;
+        }
+        return null;
     }
 
     /// Returns a Keyword TokenType !! Assumes start and end as valid slice index of self.code
     fn keywordType(self: *Lexer, start: usize, end: usize) ?luv.TokenType {
-        switch (end - start) {
+        return switch (end - start) {
             2 => switch (self.code[start]) {
-                'i' => switch (self.code[start + 1]) {
-                    'f' => return .If,
-                    'n' => return .In,
-                    else => return null,
-                },
-                'o' => switch (self.code[start + 1]) {
-                    'f' => return .Of,
-                    'r' => return .Or,
-                    else => return null,
-                },
-                else => return null,
+                'i' => self.matchKeywords(start, end, &[_]luv.TokenType{ .If, .In }),
+                'o' => self.matchKeywords(start, end, &[_]luv.TokenType{ .Of, .Or }),
+                else => null,
             },
             3 => switch (self.code[start]) {
-                'a' => {
-                    if (strEq(self.code[start + 1 .. end], "nd")) return .And;
-                    if (strEq(self.code[start + 1 .. end], "ny")) return .Any;
-                    return null;
-                },
-                'b' => if (strEq(self.code[start + 1 .. end], "ol")) return .Bol else return null,
-                'd' => if (strEq(self.code[start + 1 .. end], "ef")) return .Def else return null,
-                'f' => {
-                    if (strEq(self.code[start + 1 .. end], "un")) return .Fun;
-                    if (strEq(self.code[start + 1 .. end], "or")) return .For;
-                    if (strEq(self.code[start + 1 .. end], "it")) return .Fit;
-                    if (strEq(self.code[start + 1 .. end], "lo")) return .Flo;
-                    return null;
-                },
-                'i' => if (strEq(self.code[start + 1 .. end], "nt")) return .Int else return null,
-                'n' => {
-                    if (strEq(self.code[start + 1 .. end], "om")) return .Nom;
-                    if (strEq(self.code[start + 1 .. end], "ot")) return .Not;
-                    if (strEq(self.code[start + 1 .. end], "il")) return .Nil;
-                    return null;
-                },
-                'O' => if (strEq(self.code[start + 1 .. end], "wn")) return .Own else return null,
-                's' => if (strEq(self.code[start + 1 .. end], "tr")) return .Str else return null,
-                't' => {
-                    if (strEq(self.code[start + 1 .. end], "yp")) return .Typ;
-                    if (strEq(self.code[start + 1 .. end], "ag")) return .Tag;
-                    return null;
-                },
-                'u' => if (strEq(self.code[start + 1 .. end], "se")) return .Use else return null,
-                'v' => {
-                    if (strEq(self.code[start + 1 .. end], "ar")) return .Var;
-                    if (strEq(self.code[start + 1 .. end], "ec")) return .Vec;
-                    return null;
-                },
-                else => return null,
+                'a' => self.matchKeywords(start, end, &[_]luv.TokenType{ .And, .Any }),
+                'b' => self.matchKeyword(start, end, .Bol),
+                'd' => self.matchKeyword(start, end, .Def),
+                'f' => self.matchKeywords(start, end, &[_]luv.TokenType{ .Fun, .For, .Fit, .Flo }),
+                'i' => self.matchKeyword(start, end, .Int),
+                'n' => self.matchKeywords(start, end, &[_]luv.TokenType{ .Nom, .Not, .Nil }),
+                'O' => self.matchKeyword(start, end, .Own),
+                's' => self.matchKeyword(start, end, .Str),
+                't' => self.matchKeywords(start, end, &[_]luv.TokenType{ .Tag, .Typ }),
+                'u' => self.matchKeyword(start, end, .Use),
+                'v' => self.matchKeywords(start, end, &[_]luv.TokenType{ .Var, .Vec }),
+                else => null,
             },
             4 => switch (self.code[start]) {
-                'c' => if (strEq(self.code[start + 1 .. end], "ase")) return .Case else return null,
-                'e' => {
-                    if (strEq(self.code[start + 1 .. end], "lif")) return .Elif;
-                    if (strEq(self.code[start + 1 .. end], "lse")) return .Else;
-                    return null;
-                },
-                't' => {
-                    if (strEq(self.code[start + 1 .. end], "rue")) return .True;
-                    if (strEq(self.code[start + 1 .. end], "est")) return .Test;
-                    return null;
-                },
-                else => return null,
+                'c' => self.matchKeyword(start, end, .Case),
+                'e' => self.matchKeywords(start, end, &[_]luv.TokenType{ .Elif, .Else }),
+                't' => self.matchKeywords(start, end, &[_]luv.TokenType{ .True, .Test }),
+                else => null,
             },
             5 => switch (self.code[start]) {
-                'b' => if (strEq(self.code[start + 1 .. end], "reak")) return .Break else return null,
-                'f' => if (strEq(self.code[start + 1 .. end], "alse")) return .False else return null,
-                'm' => if (strEq(self.code[start + 1 .. end], "atch")) return .Match else return null,
-                'y' => if (strEq(self.code[start + 1 .. end], "ield")) return .Yield else return null,
-                else => return null,
+                'b' => self.matchKeyword(start, end, .Break),
+                'f' => self.matchKeyword(start, end, .False),
+                'm' => self.matchKeyword(start, end, .Match),
+                'y' => self.matchKeyword(start, end, .Yield),
+                else => null,
             },
-            6 => if (strEq(self.code[start..end], "return")) return .Return else return null,
-            8 => if (strEq(self.code[start..end], "continue")) return .Continue else return null,
-            else => return null,
-        }
+            6 => self.matchKeyword(start, end, .Return),
+            8 => self.matchKeyword(start, end, .Continue),
+            else => null,
+        };
     }
 
     /// Returns either an .Identifier or Keywords !! Assumes an Alphabetic char is read at self.char_index
