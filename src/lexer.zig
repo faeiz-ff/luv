@@ -191,7 +191,7 @@ pub const Lexer = struct {
     }
 
     fn matchKeyword(self: *Lexer, start: usize, end: usize, comptime tt: luv.TokenType) ?luv.TokenType {
-        if (std.mem.order(u8, self.code[start .. end], @tagName(tt)) == .eq) {
+        if (std.mem.order(u8, self.code[start + 1 .. end], @tagName(tt)[1..]) == .eq) {
             return tt;
         } else {
             return null;
@@ -200,7 +200,7 @@ pub const Lexer = struct {
 
     fn matchKeywords(self: *Lexer, start: usize, end: usize, comptime tts: []const luv.TokenType) ?luv.TokenType {
         inline for (tts) |tt| {
-            if (std.mem.order(u8, self.code[start .. end], @tagName(tt)) == .eq) return tt;
+            if (std.mem.order(u8, self.code[start + 1 .. end], @tagName(tt)[1..]) == .eq) return tt;
         }
         return null;
     }
@@ -240,8 +240,14 @@ pub const Lexer = struct {
                 'y' => self.matchKeyword(start, end, .Yield),
                 else => null,
             },
-            6 => self.matchKeyword(start, end, .Return),
-            8 => self.matchKeyword(start, end, .Continue),
+            6 => switch (self.code[start]) {
+                'r' => self.matchKeyword(start, end, .Return),
+                else => null
+            },
+            8 => switch (self.code[start]) {
+                'c' => self.matchKeyword(start, end, .Continue),
+                else => null,
+            },
             else => null,
         };
     }
