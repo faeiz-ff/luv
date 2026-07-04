@@ -17,16 +17,16 @@ pub const IRType = enum {
     /// Has no child
     Identifier,
     /// Stores arithmetic operation token
-    /// Binary, always have two children
+    /// Binary, always have two children: lhs and rhs
     Arithmetic,
     /// Stores assignment operation token
-    /// Binary, always have two children
+    /// Binary, always have two children: lhs and rhs
     Assignment,
     /// Stores logical operation token
-    /// Binary, always have two children
+    /// Binary, always have two children: lhs and rhs
     LogicBinary,
     /// Stores relational/comparison operation token
-    /// Binary, always have two children
+    /// Binary, always have two children: lhs and rhs
     Relational,
     /// Stores unary prefix operation token
     /// Unary, always have one child
@@ -41,7 +41,7 @@ pub const IRType = enum {
     /// Has variadic number of children
     GenericFulfill,
     /// Stores dot token
-    /// Binary, always have two children
+    /// Binary, always have two children: base and accessId
     DotAccess,
     /// Stores left square token that opens tuple type
     /// Has variadic number of children
@@ -55,6 +55,18 @@ pub const IRType = enum {
     /// Stores ampersand type token used on view type
     /// Unary, always have one child
     ViewType,
+    /// Stores var token
+    /// Ternary, always have three children: name, type, expr
+    VarDecl,
+    /// Stores var token
+    /// Binary, always have two children: name, expr
+    VarUntypedDecl,
+    /// Stores def token
+    /// Ternary, always have three children: name, type, expr
+    DefDecl,
+    /// Stores def token
+    /// Binary, always have two children: name, expr
+    DefUntypedDecl,
 };
 
 /// Luv Intermediate Representation to store in an array.

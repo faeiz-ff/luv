@@ -13,10 +13,10 @@ pub const Parser = struct {
     code: ?[]const u8,
     errors: ?luv.ErrorReport,
 
-    /// Do not set or use this outside of parser
+    /// Do not set or use this variable outside of parser
     result: std.ArrayList(luv.IR),
 
-    /// Do not set or use this outside of parser
+    /// Do not set or use this variable outside of parser
     allocator: std.mem.Allocator,
 
     pub const empty: Parser = .{
@@ -264,6 +264,33 @@ pub const Parser = struct {
         }
     }
 
+    fn dotPostFix(self: *Parser, end_index: usize) ParseError!void {
+        const dot = self.peek(0);
+        self.token_index += 1;
+
+        const tok = self.peek(0);
+        switch (tok.tt) {
+            .Identifier => {
+                const id = self.peek(0);
+                self.token_index += 1;
+
+                try self.result.append(self.allocator, .{
+                    .irtype = .Identifier,
+                    .token = id,
+                    .end_offset = 0,
+                });
+
+                try self.result.append(self.allocator, .{
+                    .irtype = .DotAccess,
+                    .token = dot,
+                    .end_offset = self.result.items.len - end_index,
+                });
+            },
+            // TODO
+            else => return error.BadSyntax,
+        }
+    }
+
     fn postFixExpr(self: *Parser) ParseError!void {
         const end_index = self.result.items.len;
         try self.primaryExpr();
@@ -288,6 +315,7 @@ pub const Parser = struct {
                     });
                 },
                 .Lsquare => try self.genericFulfillment(end_index),
+                .Dot => try self.dotPostFix(end_index),
                 // TODO
                 else => break,
             }
@@ -469,7 +497,101 @@ pub const Parser = struct {
         return self.assignmentExpr();
     }
 
+    fn topLevelDef(self: *Parser) ParseError!void {
+        const end_index = self.result.items.len;
+        const def = self.peek(0);
+        self.token_index += 1;
+
+        // TODO def test
+        try self.expect(.Identifier, "Expecting identifier after 'def' for top level def statement");
+        const id = self.peek(0);
+        self.token_index += 1;
+
+        try self.result.append(self.allocator, .{
+            .irtype = .Identifier,
+            .token = id,
+            .end_offset = 0,
+        });
+
+        var tok = self.peek(0);
+        switch (tok.tt) {
+            .Dot => while (tok.tt == .Dot) {
+                const dot = self.peek(0);
+                self.token_index += 1;
+
+                try self.expect(.Identifier, "Expecting identifier after dot '.' for namespaced id");
+                const access = self.peek(0);
+                self.token_index += 1;
+
+                try self.result.append(self.allocator, .{
+                    .irtype = .Identifier,
+                    .token = access,
+                    .end_offset = 0,
+                });
+
+                try self.result.append(self.allocator, .{
+                    .irtype = .DotAccess,
+                    .token = dot,
+                    .end_offset = self.result.items.len - end_index,
+                });
+
+                tok = self.peek(0);
+            },
+            // TODO destructure
+            else => {},
+        }
+
+        tok = self.peek(0);
+        var isTyped = false;
+        switch (tok.tt) {
+            .Identifier, .Rsquare => {
+                try self.typeRule();
+                isTyped = true;
+            },
+            else => {},
+        }
+
+        try self.expect(.Equal, "Expecting '=' after a def declaration, must be initialized");
+        self.token_index += 1;
+
+        try self.expression();
+
+        try self.result.append(self.allocator, .{
+            .irtype = if (isTyped) .DefDecl else .DefUntypedDecl,
+            .token = def,
+            .end_offset = self.result.items.len - end_index,
+        });
+    }
+
+    fn topLevelStatement(self: *Parser) ParseError!void {
+        const tok = self.peek(0);
+        switch (tok.tt) {
+            .Def => try self.topLevelDef(),
+            else => return error.BadSyntax,
+        }
+    }
+
     pub fn parse(
+        self: *Parser,
+        allocator: std.mem.Allocator,
+        tokens: []const luv.Token,
+    ) ParseError!std.ArrayList(luv.IR) {
+        self.tokens = tokens;
+        self.result = try .initCapacity(allocator, 32);
+        errdefer {
+            self.result.deinit(self.allocator);
+        }
+        self.allocator = allocator;
+
+        // - 1 to account for eof
+        while (self.token_index < self.tokens.len - 1) {
+            try self.topLevelStatement();
+        }
+
+        return self.result;
+    }
+
+    pub fn parseExpr(
         self: *Parser,
         allocator: std.mem.Allocator,
         tokens: []const luv.Token,
@@ -487,28 +609,12 @@ pub const Parser = struct {
     }
 };
 
-test "error no leak" {
+test "top level def" {
     const t = std.testing;
 
     const code =
-        \\Parser[Parser[Parser[Parser[[]]]]
-    ;
-
-    var l: luv.Lexer = .empty;
-
-    var toks = try l.lexAll(t.allocator, code);
-    defer toks.deinit(t.allocator);
-
-    var p: Parser = .empty;
-
-    try t.expectError(error.BadSyntax, p.parse(t.allocator, toks.items));
-}
-
-test "postfixes" {
-    const t = std.testing;
-
-    const code =
-        \\ a?!?!
+        \\ def a b = 10
+        \\ def c.d = 20
     ;
 
     var l: luv.Lexer = .empty;
@@ -524,31 +630,65 @@ test "postfixes" {
     try t.expectEqualSlices(
         luv.IR,
         &[_]luv.IR{
-            .{
-                .irtype = .Identifier,
-                .token = toks.items[0],
-                .end_offset = 0,
-            },
-            .{
-                .irtype = .QuestionMarkPostFix,
-                .token = toks.items[1],
-                .end_offset = 1,
-            },
-            .{
-                .irtype = .BangPostFix,
-                .token = toks.items[2],
-                .end_offset = 2,
-            },
-            .{
-                .irtype = .QuestionMarkPostFix,
-                .token = toks.items[3],
-                .end_offset = 3,
-            },
-            .{
-                .irtype = .BangPostFix,
-                .token = toks.items[4],
-                .end_offset = 4,
-            },
+            .{ .irtype = .Identifier, .token = toks.items[1], .end_offset = 0 },
+            .{ .irtype = .Identifier, .token = toks.items[2], .end_offset = 0 },
+            .{ .irtype = .IntLiteral, .token = toks.items[4], .end_offset = 0 },
+            .{ .irtype = .DefDecl, .token = toks.items[0], .end_offset = 3 },
+            .{ .irtype = .Identifier, .token = toks.items[6], .end_offset = 0 },
+            .{ .irtype = .Identifier, .token = toks.items[8], .end_offset = 0 },
+            .{ .irtype = .DotAccess, .token = toks.items[7], .end_offset = 2 },
+            .{ .irtype = .IntLiteral, .token = toks.items[10], .end_offset = 0 },
+            .{ .irtype = .DefUntypedDecl, .token = toks.items[5], .end_offset = 4 },
+        },
+        nodelist.items,
+    );
+}
+
+test "error no leak" {
+    const t = std.testing;
+
+    const code =
+        \\Parser[Parser[Parser[Parser[[]]]]
+    ;
+
+    var l: luv.Lexer = .empty;
+
+    var toks = try l.lexAll(t.allocator, code);
+    defer toks.deinit(t.allocator);
+
+    var p: Parser = .empty;
+
+    try t.expectError(error.BadSyntax, p.parseExpr(t.allocator, toks.items));
+}
+
+test "postfixes" {
+    const t = std.testing;
+
+    const code =
+        \\ a?!?!.inner?
+    ;
+
+    var l: luv.Lexer = .empty;
+
+    var toks = try l.lexAll(t.allocator, code);
+    defer toks.deinit(t.allocator);
+
+    var p: Parser = .empty;
+
+    var nodelist = try p.parseExpr(t.allocator, toks.items);
+    defer nodelist.deinit(t.allocator);
+
+    try t.expectEqualSlices(
+        luv.IR,
+        &[_]luv.IR{
+            .{ .irtype = .Identifier, .token = toks.items[0], .end_offset = 0 },
+            .{ .irtype = .QuestionMarkPostFix, .token = toks.items[1], .end_offset = 1 },
+            .{ .irtype = .BangPostFix, .token = toks.items[2], .end_offset = 2 },
+            .{ .irtype = .QuestionMarkPostFix, .token = toks.items[3], .end_offset = 3 },
+            .{ .irtype = .BangPostFix, .token = toks.items[4], .end_offset = 4 },
+            .{ .irtype = .Identifier, .token = toks.items[6], .end_offset = 0 },
+            .{ .irtype = .DotAccess, .token = toks.items[5], .end_offset = 6 },
+            .{ .irtype = .QuestionMarkPostFix, .token = toks.items[7], .end_offset = 7 },
         },
         nodelist.items,
     );
@@ -567,7 +707,7 @@ test "type dot access" {
 
     var p: Parser = .empty;
 
-    var nodelist = try p.parse(t.allocator, toks.items);
+    var nodelist = try p.parseExpr(t.allocator, toks.items);
     defer nodelist.deinit(t.allocator);
 
     try t.expectEqualSlices(
@@ -598,7 +738,7 @@ test "exprs with types" {
 
     var p: Parser = .empty;
 
-    var nodelist = try p.parse(t.allocator, toks.items);
+    var nodelist = try p.parseExpr(t.allocator, toks.items);
     defer nodelist.deinit(t.allocator);
 
     try t.expectEqualSlices(
@@ -636,7 +776,7 @@ test "basic functionality" {
 
     var p: Parser = .empty;
 
-    var nodelist = try p.parse(t.allocator, toks.items);
+    var nodelist = try p.parseExpr(t.allocator, toks.items);
     defer nodelist.deinit(t.allocator);
 
     try t.expectEqualSlices(
