@@ -17,12 +17,11 @@ pub fn main(init: std.process.Init) !void {
 
             try runFile(io, path);
         } else {
-            std.debug.print("luv: invalid command: {s}\n", .{ m });
+            std.debug.print("luv: invalid command: {s}\n", .{m});
         }
     } else {
         std.debug.print("luv: Usage: luv run FILENAME\n", .{});
     }
-
 }
 
 fn runFile(io: std.Io, path: []const u8) !void {
@@ -47,13 +46,33 @@ fn runFile(io: std.Io, path: []const u8) !void {
 
     try reader.interface.appendRemainingUnlimited(allocator, &code);
 
-    var lexer = luv.Lexer.initWithErr(code.items, stderr);
-    var tokens = try lexer.lexAll(allocator);
+    var lexer: luv.Lexer = .empty;
+    lexer.assignErr(stderr);
+
+    var tokens = try lexer.lexAll(allocator, code.items);
     defer tokens.deinit(allocator);
 
     for (tokens.items) |tok| {
-        try stdout.print("{any}\n", .{tok.tt});
+        try stdout.print("{s: <15}: {s}\n", .{
+            @tagName(tok.tt),
+            tok.lexeme,
+        });
+    }
+    try stdout.flush();
+
+    var parser: luv.Parser = .empty;
+    parser.assignErr(code.items, stderr);
+
+    var irs = try parser.parse(allocator, tokens.items);
+    defer irs.deinit(allocator);
+
+    for (irs.items) |ir| {
+        try stdout.print("{s: <15} ^{d: <3} : {s} at {any}\n", .{
+            @tagName(ir.irtype),
+            ir.end_offset,
+            ir.token.lexeme,
+            ir.token.pos,
+        });
     }
     try stdout.flush();
 }
-
