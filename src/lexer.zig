@@ -84,13 +84,13 @@ pub const Lexer = struct {
     /// Returns a token, and add lexeme length into current x_pos
     fn makeToken(self: *Lexer, lexeme: []const u8, tt: luv.TokenType) luv.Token {
         const last_x_pos = self.pos.x;
-        self.pos.x += lexeme.len;
+        self.pos.x += @intCast(lexeme.len);
         return .{
             .lexeme = lexeme,
             .tt = tt,
             .pos = .{
                 .x = last_x_pos,
-                .y = self.pos.y,
+                .y = @intCast(self.pos.y),
             },
         };
     }

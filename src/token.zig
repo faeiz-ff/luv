@@ -1,6 +1,6 @@
 const std = @import("std");
 
-pub const Position = struct { x: usize, y: usize };
+pub const Position = struct { x: u32, y: u32 };
 
 pub const Token = struct {
     tt: TokenType,

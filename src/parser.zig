@@ -73,6 +73,7 @@ pub const Parser = struct {
         if (self.errors) |*err| {
             try err
                 .err("Unexpected token")
+                .withFileName("testing", tok.pos)
                 .withLineMsg(self.code.?, tok.pos, errMsg)
                 .flush();
         }
@@ -84,7 +85,7 @@ pub const Parser = struct {
         try self.result.append(self.allocator, .{
             .irtype = irtype,
             .token = token,
-            .end_offset = end_offset,
+            .end_offset = @intCast(end_offset),
         });
     }
 
@@ -389,16 +390,6 @@ pub const Parser = struct {
             try self.addIR(.Assignment, tok, self.currentIrIndex() - end_index);
         }
 
-        if (self.match(assignmentTokens)) {
-            const tok = self.peekThenAdvance();
-
-            if (self.errors) |*err| {
-                try err.err("Illegal chain of assignment expression")
-                    .withLineMsg(self.code.?, tok.pos, "use explicit grouping parentheses for this")
-                    .flush();
-            }
-            return error.BadSyntax;
-        }
     }
 
     fn expression(self: *Parser) ParseError!void {
