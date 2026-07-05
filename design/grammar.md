@@ -1,3 +1,4 @@
+```g4
 grammar luv;
 
 program: topLevelStmt* EOF;
@@ -20,7 +21,7 @@ symType: 'sym' '{' (ID ('=' expr)? (';' | ',')?)+ '}';
 
 fitType: 'fit' genericDeclaration? '{' ('def'? (ID (typeRule | 'Own' '?') | methodDecl) ';'?)+ '}';
 
-typStmt: 'typ' ID (tagType | nomType | fitType | typeRule);
+typStmt: 'typ' '^'? nameSpacedIdentifier (tagType | nomType | fitType | typeRule);
 
 methodDecl: ID '(' ((typeRule | 'Own') (',' (typeRule | 'Own'))* (',' '..' (typeRule | 'Own'))? | ('..' (typeRule | 'Own')))? ')' (typeRule | 'Own');
 
@@ -180,3 +181,4 @@ INT_LITERAL
 
 WS: [ \t\r\n]+ -> skip;
 COMMENT: '#' ~[\n\r]* -> skip;
+```

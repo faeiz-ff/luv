@@ -52,6 +52,9 @@ pub const IRType = enum {
     /// Stores question mark type token used on optional type
     /// Unary, always have one child
     OptionalType,
+    /// Stores a BuiltinType Token: int, str, bol, flo, nil, any
+    /// Has no child
+    BuiltinType,
     /// Stores ampersand type token used on view type
     /// Unary, always have one child
     ViewType,
@@ -67,6 +70,9 @@ pub const IRType = enum {
     /// Stores def token
     /// Binary, always have two children: name, expr
     DefUntypedDecl,
+    /// Stores typ token
+    /// Binary, always have two children: name, typRule
+    TypDecl,
 };
 
 /// Luv Intermediate Representation to store in an array.
@@ -77,5 +83,5 @@ pub const IR = struct {
     /// The index offset of the last recursive children of this IR
     /// used for skipping ahead to the next "sibling" node
     /// 0 means this node has no child
-    end_offset: usize,
+    end_offset: u32,
 };

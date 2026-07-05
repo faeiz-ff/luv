@@ -148,7 +148,10 @@ pub const Parser = struct {
                 }
             },
             .Lsquare => return self.tupleOrGroupingType(),
-
+            .Int, .Str, .Bol, .Flo, .Nil, .Any => {
+                self.token_index += 1;
+                try self.addIR(.BuiltinType, tok, 0);
+            },
             // TODO
             else => return error.BadSyntax,
         }
@@ -227,6 +230,7 @@ pub const Parser = struct {
                 try self.expect(.Rparen, "Expecting closing right parentheses");
                 self.token_index += 1;
             },
+            .Int, .Str, .Bol, .Flo => try self.addIR(.BuiltinType, tok, 0),
             // TODO
             else => return error.BadSyntax,
         }
@@ -389,7 +393,6 @@ pub const Parser = struct {
 
             try self.addIR(.Assignment, tok, self.currentIrIndex() - end_index);
         }
-
     }
 
     fn expression(self: *Parser) ParseError!void {
@@ -428,7 +431,7 @@ pub const Parser = struct {
         tok = self.peek(0);
         var isTyped = false;
         switch (tok.tt) {
-            .Identifier, .Rsquare => {
+            .Identifier, .Rsquare, .Int, .Str, .Bol, .Flo, .Nil, .Any => {
                 try self.typeRule();
                 isTyped = true;
             },
@@ -443,10 +446,43 @@ pub const Parser = struct {
         try self.addIR(if (isTyped) .DefDecl else .DefUntypedDecl, def, self.currentIrIndex() - end_index);
     }
 
+    fn typDecl(self: *Parser) ParseError!void {
+        const end_index = self.result.items.len;
+        const typ_tok = self.peekThenAdvance();
+
+        // TODO export modifier
+        try self.expect(.Identifier, "Expecting identifier after 'typ' for type declaration");
+        const id = self.peekThenAdvance();
+
+        try self.addIR(.Identifier, id, 0);
+
+        var tok = self.peek(0);
+        switch (tok.tt) {
+            .Dot => while (tok.tt == .Dot) {
+                const dot = self.peekThenAdvance();
+
+                try self.expect(.Identifier, "Expecting identifier after dot '.' for namespaced identifier");
+                const access = self.peekThenAdvance();
+
+                try self.addIR(.Identifier, access, 0);
+
+                try self.addIR(.DotAccess, dot, self.result.items.len - end_index);
+
+                tok = self.peek(0);
+            },
+            else => {},
+        }
+
+        try self.typeRule();
+
+        try self.addIR(.TypDecl, typ_tok, self.result.items.len - end_index);
+    }
+
     fn topLevelStatement(self: *Parser) ParseError!void {
         const tok = self.peek(0);
         switch (tok.tt) {
             .Def => try self.topLevelDef(),
+            .Typ => try self.typDecl(),
             // TODO
             else => return error.BadSyntax,
         }
@@ -491,11 +527,40 @@ pub const Parser = struct {
     }
 };
 
+test "typ decl" {
+    const t = std.testing;
+
+    const code =
+        \\typ Value flo?
+    ;
+
+    var l: luv.Lexer = .empty;
+
+    var toks = try l.lexAll(t.allocator, code);
+    defer toks.deinit(t.allocator);
+
+    var p: Parser = .empty;
+
+    var nodelist = try p.parse(t.allocator, toks.items);
+    defer nodelist.deinit(t.allocator);
+
+    try t.expectEqualSlices(
+        luv.IR,
+        &[_]luv.IR{
+            .{ .irtype = .Identifier, .token = toks.items[1], .end_offset = 0 },
+            .{ .irtype = .BuiltinType, .token = toks.items[2], .end_offset = 0 },
+            .{ .irtype = .OptionalType, .token = toks.items[3], .end_offset = 1 },
+            .{ .irtype = .TypDecl, .token = toks.items[0], .end_offset = 3 },
+        },
+        nodelist.items,
+    );
+}
+
 test "top level def" {
     const t = std.testing;
 
     const code =
-        \\ def a b = 10
+        \\ def a int = 10
         \\ def c.d = 20
     ;
 
@@ -513,7 +578,7 @@ test "top level def" {
         luv.IR,
         &[_]luv.IR{
             .{ .irtype = .Identifier, .token = toks.items[1], .end_offset = 0 },
-            .{ .irtype = .Identifier, .token = toks.items[2], .end_offset = 0 },
+            .{ .irtype = .BuiltinType, .token = toks.items[2], .end_offset = 0 },
             .{ .irtype = .IntLiteral, .token = toks.items[4], .end_offset = 0 },
             .{ .irtype = .DefDecl, .token = toks.items[0], .end_offset = 3 },
             .{ .irtype = .Identifier, .token = toks.items[6], .end_offset = 0 },
