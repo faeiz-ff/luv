@@ -64,17 +64,22 @@ pub const Parser = struct {
         return false;
     }
 
-    fn expect(self: *Parser, tt: luv.TokenType, comptime errMsg: []const u8) ParseError!void {
-        const tok = self.peek(0);
+    fn expect(self: *Parser, tt: luv.TokenType, errMsg: []const u8) ParseError!void {
+        var tok = self.peek(0);
         if (tok.tt == tt) {
             return;
         }
 
+        tok = self.tokens[self.token_index - 1];
         if (self.errors) |*err| {
+            const pos: luv.Position = .{
+                .x = tok.pos.x - 1 + @as(u32, @intCast(tok.lexeme.len)),
+                .y = tok.pos.y,
+            };
             try err
                 .err("Unexpected token")
-                .withFileName("testing", tok.pos)
-                .withLineMsg(self.code.?, tok.pos, errMsg)
+                .withFileName("testing", pos)
+                .withLineMsg(self.code.?, pos, errMsg)
                 .flush();
         }
 
@@ -431,14 +436,14 @@ pub const Parser = struct {
         tok = self.peek(0);
         var isTyped = false;
         switch (tok.tt) {
-            .Identifier, .Rsquare, .Int, .Str, .Bol, .Flo, .Nil, .Any => {
+            .Identifier, .Lsquare, .Int, .Str, .Bol, .Flo, .Nil, .Any => {
                 try self.typeRule();
                 isTyped = true;
             },
             else => {},
         }
 
-        try self.expect(.Equal, "Expecting '=' after a def declaration, must be initialized");
+        try self.expect(.Equal, "Expecting '=' after an identifier in def declaration");
         self.token_index += 1;
 
         try self.expression();

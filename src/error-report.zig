@@ -41,7 +41,7 @@ pub const ErrorReport = struct {
     }
 
     /// Report an Err, increments report counter
-    pub fn err(self: *Self, comptime errheader: []const u8) *Self {
+    pub fn err(self: *Self, errheader: []const u8) *Self {
         if (self.hasFailedWrite) return self;
 
         self.count += 1;
@@ -59,7 +59,7 @@ pub const ErrorReport = struct {
     }
 
     /// Report a Warn, increments report counter
-    pub fn warn(self: *Self, comptime errheader: []const u8) *Self {
+    pub fn warn(self: *Self, errheader: []const u8) *Self {
         if (self.hasFailedWrite) return self;
 
         self.count += 1;
@@ -77,7 +77,7 @@ pub const ErrorReport = struct {
     }
 
     /// Report an Info, increments report counter
-    pub fn info(self: *Self, comptime errheader: []const u8) *Self {
+    pub fn info(self: *Self, errheader: []const u8) *Self {
         if (self.hasFailedWrite) return self;
 
         self.count += 1;
