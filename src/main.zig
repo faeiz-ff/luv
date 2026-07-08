@@ -58,21 +58,30 @@ fn runFile(io: std.Io, path: []const u8) !void {
             tok.lexeme,
         });
     }
+    try stdout.print("\n", .{});
     try stdout.flush();
 
     var parser: luv.Parser = .empty;
     parser.assignErr(code.items, stderr);
 
-    var irs = try parser.parse(allocator, tokens.items);
-    defer irs.deinit(allocator);
+    var irs: ?std.ArrayList(luv.IR) = parser.parse(allocator, tokens.items) catch null;
+    defer if (irs) |*ir| ir.deinit(allocator);
 
-    for (irs.items) |ir| {
-        try stdout.print("{s: <15} ^{d: <3} : {s} at {any}\n", .{
-            @tagName(ir.irtype),
-            ir.end_offset,
-            ir.token.lexeme,
-            ir.token.pos,
-        });
+    if (irs) |irss| {
+        luv.IR.reverseSlice(irss.items);
+        try luv.IR.printTree(stdout, irss.items);
+        // for (irss.items) |ir| {
+        //     try stdout.print("{s: <15} v{d: <3} : {s} at {d}, {d}\n", .{
+        //         @tagName(ir.irtype),
+        //         ir.end_offset,
+        //         ir.token.lexeme,
+        //         ir.token.pos.x,
+        //         ir.token.pos.y,
+        //     });
+        // } 
+    } else {
+        try stdout.print("Bad Syntax, parse failed\n", .{});
     }
+
     try stdout.flush();
 }

@@ -4,6 +4,10 @@ const luv = @import("root.zig");
 /// Intermediate Representation enum, dictates what the ir type is
 /// and what token gets stored
 pub const IRType = enum {
+    /// Top of the tree marker
+    /// Stores eof token
+    /// Variadic child of top level statements
+    LuvProgram,
     /// Stores int token
     /// Has no child
     IntLiteral,
@@ -84,4 +88,93 @@ pub const IR = struct {
     /// used for skipping ahead to the next "sibling" node
     /// 0 means this node has no child
     end_offset: u32,
+
+    /// Used for reversing a slice in place, assumes a valid array IR
+    pub fn reverseSlice(arr: []IR) void {
+        if (arr.len == 1) return;
+
+        const parent_ir = arr[arr.len - 1];
+
+        var child_index = arr.len - 2;
+        var child_ir = arr[child_index];
+
+        while (true) {
+            reverseSlice(
+                arr[child_index - child_ir.end_offset .. child_index + 1],
+            );
+
+            if (child_index - child_ir.end_offset == 0) break;
+
+            child_index -= child_ir.end_offset + 1;
+            child_ir = arr[child_index];
+        }
+
+        var i = arr.len - 1;
+        while (i > 0) : (i -= 1) {
+            arr.ptr[i] = arr[i - 1];
+        }
+
+        arr.ptr[0] = parent_ir;
+    }
+
+    fn printTreeDepth(writer: *std.Io.Writer, arr: []IR, depth: usize) !void {
+        for (0..depth) |i| {
+            if (i == depth - 1) {
+                try writer.print("  > ", .{});
+            } else {
+                try writer.print("  | ", .{});
+            }
+        }
+
+        var index: usize = 0;
+
+        const ir = arr[index];
+        try writer.print("{s}\n", .{
+            @tagName(ir.irtype),
+        });
+
+        index += 1;
+        while (index < arr.len) {
+            const child_ir = arr[index];
+            try printTreeDepth(writer, arr[index .. index + child_ir.end_offset + 1], depth + 1);
+            index += child_ir.end_offset + 1;
+        }
+    }
+
+    pub fn printTree(writer: *std.Io.Writer, arr: []IR) !void {
+        try printTreeDepth(writer, arr, 0);
+    }
 };
+
+test "IR.reverseSlice" {
+    const t = std.testing;
+
+    const code =
+        \\def tones.n.i Fraction[int, ieee.Fixed[f64]] = 
+        \\    1 * (8 + 255 + ok.ok[int].ok)
+    ;
+
+    var l: luv.Lexer = .empty;
+
+    var toks = try l.lexAll(t.allocator, code);
+    defer toks.deinit(t.allocator);
+
+    var p: luv.Parser = .empty;
+
+    var nodelist = try p.parse(t.allocator, toks.items);
+    defer nodelist.deinit(t.allocator);
+
+    IR.reverseSlice(nodelist.items);
+
+    try t.expectEqualSlices(
+        luv.IR,
+        &[_]luv.IR{
+            .{ .irtype = .Identifier, .token = toks.items[1], .end_offset = 0 },
+            .{ .irtype = .BuiltinType, .token = toks.items[2], .end_offset = 0 },
+            .{ .irtype = .OptionalType, .token = toks.items[3], .end_offset = 1 },
+            .{ .irtype = .TypDecl, .token = toks.items[0], .end_offset = 3 },
+            .{ .irtype = .LuvProgram, .token = toks.items[4], .end_offset = 4 },
+        },
+        nodelist.items,
+    );
+}

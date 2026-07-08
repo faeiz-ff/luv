@@ -511,6 +511,8 @@ pub const Parser = struct {
             try self.topLevelStatement();
         }
 
+        try self.addIR(.LuvProgram, self.peek(0), self.currentIrIndex());
+
         return self.result;
     }
 
@@ -556,6 +558,7 @@ test "typ decl" {
             .{ .irtype = .BuiltinType, .token = toks.items[2], .end_offset = 0 },
             .{ .irtype = .OptionalType, .token = toks.items[3], .end_offset = 1 },
             .{ .irtype = .TypDecl, .token = toks.items[0], .end_offset = 3 },
+            .{ .irtype = .LuvProgram, .token = toks.items[4], .end_offset = 4 },
         },
         nodelist.items,
     );
@@ -591,6 +594,7 @@ test "top level def" {
             .{ .irtype = .DotAccess, .token = toks.items[7], .end_offset = 2 },
             .{ .irtype = .IntLiteral, .token = toks.items[10], .end_offset = 0 },
             .{ .irtype = .DefUntypedDecl, .token = toks.items[5], .end_offset = 4 },
+            .{ .irtype = .LuvProgram, .token = toks.items[11], .end_offset = 9 },
         },
         nodelist.items,
     );
