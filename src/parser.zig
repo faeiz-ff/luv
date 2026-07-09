@@ -42,15 +42,25 @@ pub const Parser = struct {
         }
     }
 
+    fn curr(self: *Parser) luv.Token {
+        return self.tokens.ptr[self.token_index];
+    }
+
+    fn advance(self: *Parser) void {
+        if (self.token_index < self.tokens.len - 1) {
+            self.token_index += 1;
+        }
+    }
+
     inline fn peekThenAdvance(self: *Parser) luv.Token {
-        const tok = self.peek(0);
-        self.token_index += 1;
+        const tok = self.curr();
+        self.advance();
         return tok;
     }
 
     fn match(self: *Parser, matches: []const luv.TokenType) bool {
         for (matches) |tt| {
-            if (self.peek(0).tt == tt) {
+            if (self.curr().tt == tt) {
                 return true;
             }
         }
@@ -58,14 +68,14 @@ pub const Parser = struct {
     }
 
     fn matchOne(self: *Parser, tt: luv.TokenType) bool {
-        if (self.peek(0).tt == tt) {
+        if (self.curr().tt == tt) {
             return true;
         }
         return false;
     }
 
     fn expect(self: *Parser, tt: luv.TokenType, errMsg: []const u8) ParseError!void {
-        var tok = self.peek(0);
+        var tok = self.curr();
         if (tok.tt == tt) {
             return;
         }
@@ -103,7 +113,7 @@ pub const Parser = struct {
         const lsquare = self.peekThenAdvance();
 
         if (self.matchOne(.Rsquare)) {
-            self.token_index += 1;
+            self.advance();
 
             try self.addIR(.TupleType, lsquare, 0);
 
@@ -116,17 +126,17 @@ pub const Parser = struct {
 
         if (self.matchOne(.Comma)) {
             while (self.matchOne(.Comma)) {
-                self.token_index += 1;
+                self.advance();
                 try self.typeRule();
             }
 
             try self.expect(.Rsquare, "Expecting a right square bracket for closing tuple type");
-            self.token_index += 1;
+            self.advance();
 
             try self.addIR(.TupleType, lsquare, self.currentIrIndex() - end_index);
         } else {
             try self.expect(.Rsquare, "Expecting a right square bracket for closing type grouping");
-            self.token_index += 1;
+            self.advance();
         }
     }
 
@@ -135,33 +145,33 @@ pub const Parser = struct {
         const fun = self.peekThenAdvance();
 
         try self.expect(.Lparen, "Expecting a parentheses for function type parameters");
-        self.token_index += 1;
+        self.advance();
 
-        var tok = self.peek(0);
+        var tok = self.curr();
         var hasVariadic = false;
         if (tok.tt == .DotDot) {
-            self.token_index += 1;
+            self.advance();
             hasVariadic = true;
         }
 
         try self.typeRule();
 
-        tok = self.peek(0);
+        tok = self.curr();
         while (tok.tt == .Comma) {
-            self.token_index += 1;
+            self.advance();
             switch (tok.tt) {
                 .DotDot => {
-                    self.token_index += 1;
+                    self.advance();
                     hasVariadic = true;
                     try self.typeRule();
                 },
                 else => try self.typeRule(),
             }
-            tok = self.peek(0);
+            tok = self.curr();
         }
 
         try self.expect(.Rparen, "Expecting a right parentheses for closing function type parameters");
-        self.token_index += 1;
+        self.advance();
 
         try self.typeRule();
 
@@ -169,14 +179,14 @@ pub const Parser = struct {
     }
 
     fn typeBase(self: *Parser) ParseError!void {
-        const tok = self.peek(0);
+        const tok = self.curr();
         switch (tok.tt) {
             .Identifier => {
                 const end_index = self.currentIrIndex();
 
                 try self.addIR(.Identifier, tok, 0);
 
-                self.token_index += 1;
+                self.advance();
 
                 while (self.matchOne(.Dot)) {
                     const op = self.peekThenAdvance();
@@ -192,7 +202,7 @@ pub const Parser = struct {
             },
             .Lsquare => return self.tupleOrGroupingType(),
             .Int, .Str, .Bol, .Flo, .Nil, .Any => {
-                self.token_index += 1;
+                self.advance();
                 try self.addIR(.BuiltinType, tok, 0);
             },
             .Fun => return self.funType(),
@@ -206,14 +216,14 @@ pub const Parser = struct {
         try self.typeBase();
 
         while (true) {
-            const tok = self.peek(0);
+            const tok = self.curr();
             switch (tok.tt) {
                 .QuestionMark => {
-                    self.token_index += 1;
+                    self.advance();
                     try self.addIR(.OptionalType, tok, self.currentIrIndex() - end_index);
                 },
                 .Ampersand => {
-                    self.token_index += 1;
+                    self.advance();
                     try self.addIR(.ViewType, tok, self.currentIrIndex() - end_index);
                 },
                 .Lsquare => try self.genericFulfillment(end_index),
@@ -250,12 +260,12 @@ pub const Parser = struct {
         try self.typeRule();
 
         while (self.matchOne(.Comma)) {
-            self.token_index += 1;
+            self.advance();
             try self.typeRule();
         }
 
         try self.expect(.Rsquare, "Expecting a right square bracket for closing generic fulfillment");
-        self.token_index += 1;
+        self.advance();
 
         try self.addIR(.GenericFulfill, lsquare, self.currentIrIndex() - end_index);
     }
@@ -272,7 +282,7 @@ pub const Parser = struct {
             .Lparen => {
                 try self.expression();
                 try self.expect(.Rparen, "Expecting closing right parentheses");
-                self.token_index += 1;
+                self.advance();
             },
             .Int, .Str, .Bol, .Flo => try self.addIR(.BuiltinType, tok, 0),
             // TODO
@@ -283,7 +293,7 @@ pub const Parser = struct {
     fn dotPostFix(self: *Parser, end_index: usize) ParseError!void {
         const dot = self.peekThenAdvance();
 
-        const tok = self.peek(0);
+        const tok = self.curr();
         switch (tok.tt) {
             .Identifier => {
                 const id = self.peekThenAdvance();
@@ -301,14 +311,14 @@ pub const Parser = struct {
         try self.primaryExpr();
 
         while (true) {
-            const tok = self.peek(0);
+            const tok = self.curr();
             switch (tok.tt) {
                 .QuestionMark => {
-                    self.token_index += 1;
+                    self.advance();
                     try self.addIR(.QuestionMarkPostFix, tok, self.currentIrIndex() - end_index);
                 },
                 .Bang => {
-                    self.token_index += 1;
+                    self.advance();
                     try self.addIR(.BangPostFix, tok, self.currentIrIndex() - end_index);
                 },
                 .Lsquare => try self.genericFulfillment(end_index),
@@ -453,7 +463,7 @@ pub const Parser = struct {
 
         try self.addIR(.Identifier, id, 0);
 
-        var tok = self.peek(0);
+        var tok = self.curr();
         switch (tok.tt) {
             .Dot => while (tok.tt == .Dot) {
                 const dot = self.peekThenAdvance();
@@ -465,25 +475,25 @@ pub const Parser = struct {
 
                 try self.addIR(.DotAccess, dot, self.currentIrIndex() - end_index);
 
-                tok = self.peek(0);
+                tok = self.curr();
             },
             // TODO destructure
             // TODO optionals and view infer
             else => {},
         }
 
-        tok = self.peek(0);
+        tok = self.curr();
         var isTyped = false;
         switch (tok.tt) {
-            .Identifier, .Lsquare, .Int, .Str, .Bol, .Flo, .Nil, .Any => {
+            .Equal => {},
+            else => {
                 try self.typeRule();
                 isTyped = true;
             },
-            else => {},
         }
 
         try self.expect(.Equal, "Expecting '=' after an identifier in def declaration");
-        self.token_index += 1;
+        self.advance();
 
         try self.expression();
 
@@ -500,7 +510,7 @@ pub const Parser = struct {
 
         try self.addIR(.Identifier, id, 0);
 
-        var tok = self.peek(0);
+        var tok = self.curr();
         switch (tok.tt) {
             .Dot => while (tok.tt == .Dot) {
                 const dot = self.peekThenAdvance();
@@ -512,7 +522,7 @@ pub const Parser = struct {
 
                 try self.addIR(.DotAccess, dot, self.result.items.len - end_index);
 
-                tok = self.peek(0);
+                tok = self.curr();
             },
             else => {},
         }
@@ -523,14 +533,14 @@ pub const Parser = struct {
     }
 
     fn topLevelStatement(self: *Parser) ParseError!void {
-        const tok = self.peek(0);
+        const tok = self.curr();
         switch (tok.tt) {
             .Def => try self.topLevelDef(),
             .Typ => try self.typeDecl(),
             // TODO
             else => return error.BadSyntax,
         }
-        if (self.matchOne(.Semicolon)) self.token_index += 1;
+        if (self.matchOne(.Semicolon)) self.advance();
     }
 
     pub fn parse(
@@ -550,7 +560,7 @@ pub const Parser = struct {
             try self.topLevelStatement();
         }
 
-        try self.addIR(.LuvProgram, self.peek(0), self.currentIrIndex());
+        try self.addIR(.LuvProgram, self.curr(), self.currentIrIndex());
 
         return self.result;
     }
