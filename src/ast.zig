@@ -77,6 +77,14 @@ pub const IRType = enum {
     /// Stores typ token
     /// Binary, always have two children: name, typRule
     TypDecl,
+    /// Stores fun token
+    /// Has variadic number of children
+    /// the contents will be types, last of which is the return type
+    FunType,
+    /// Stores fun token
+    /// Has variadic number of children
+    /// the contents will be types, last is the return type and before that is the variadic parameter type
+    FunVariadicType,
 };
 
 /// Luv Intermediate Representation to store in an array.
@@ -150,8 +158,7 @@ test "IR.reverseSlice" {
     const t = std.testing;
 
     const code =
-        \\def tones.n.i Fraction[int, ieee.Fixed[f64]] = 
-        \\    1 * (8 + 255 + ok.ok[int].ok)
+        \\def tones = 10 + 10
     ;
 
     var l: luv.Lexer = .empty;
@@ -169,11 +176,12 @@ test "IR.reverseSlice" {
     try t.expectEqualSlices(
         luv.IR,
         &[_]luv.IR{
+            .{ .irtype = .LuvProgram, .token = toks.items[6], .end_offset = 5 }, 
+            .{ .irtype = .DefUntypedDecl, .token = toks.items[0], .end_offset = 4 },
             .{ .irtype = .Identifier, .token = toks.items[1], .end_offset = 0 },
-            .{ .irtype = .BuiltinType, .token = toks.items[2], .end_offset = 0 },
-            .{ .irtype = .OptionalType, .token = toks.items[3], .end_offset = 1 },
-            .{ .irtype = .TypDecl, .token = toks.items[0], .end_offset = 3 },
-            .{ .irtype = .LuvProgram, .token = toks.items[4], .end_offset = 4 },
+            .{ .irtype = .Arithmetic, .token = toks.items[4], .end_offset = 2 },
+            .{ .irtype = .IntLiteral, .token = toks.items[3], .end_offset = 0 },
+            .{ .irtype = .IntLiteral, .token = toks.items[5], .end_offset = 0 },
         },
         nodelist.items,
     );

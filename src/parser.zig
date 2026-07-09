@@ -130,7 +130,45 @@ pub const Parser = struct {
         }
     }
 
-    fn typBase(self: *Parser) ParseError!void {
+    fn funType(self: *Parser) ParseError!void {
+        const end_index = self.currentIrIndex();
+        const fun = self.peekThenAdvance();
+
+        try self.expect(.Lparen, "Expecting a parentheses for function type parameters");
+        self.token_index += 1;
+
+        var tok = self.peek(0);
+        var hasVariadic = false;
+        if (tok.tt == .DotDot) {
+            self.token_index += 1;
+            hasVariadic = true;
+        }
+
+        try self.typeRule();
+
+        tok = self.peek(0);
+        while (tok.tt == .Comma) {
+            self.token_index += 1;
+            switch (tok.tt) {
+                .DotDot => {
+                    self.token_index += 1;
+                    hasVariadic = true;
+                    try self.typeRule();
+                },
+                else => try self.typeRule(),
+            }
+            tok = self.peek(0);
+        }
+
+        try self.expect(.Rparen, "Expecting a right parentheses for closing function type parameters");
+        self.token_index += 1;
+
+        try self.typeRule();
+
+        try self.addIR(if (hasVariadic) .FunVariadicType else .FunType, fun, self.currentIrIndex() - end_index);
+    }
+
+    fn typeBase(self: *Parser) ParseError!void {
         const tok = self.peek(0);
         switch (tok.tt) {
             .Identifier => {
@@ -157,6 +195,7 @@ pub const Parser = struct {
                 self.token_index += 1;
                 try self.addIR(.BuiltinType, tok, 0);
             },
+            .Fun => return self.funType(),
             // TODO
             else => return error.BadSyntax,
         }
@@ -164,7 +203,7 @@ pub const Parser = struct {
 
     fn typePostFix(self: *Parser) ParseError!void {
         const end_index = self.currentIrIndex();
-        try self.typBase();
+        try self.typeBase();
 
         while (true) {
             const tok = self.peek(0);
@@ -451,7 +490,7 @@ pub const Parser = struct {
         try self.addIR(if (isTyped) .DefDecl else .DefUntypedDecl, def, self.currentIrIndex() - end_index);
     }
 
-    fn typDecl(self: *Parser) ParseError!void {
+    fn typeDecl(self: *Parser) ParseError!void {
         const end_index = self.result.items.len;
         const typ_tok = self.peekThenAdvance();
 
@@ -487,7 +526,7 @@ pub const Parser = struct {
         const tok = self.peek(0);
         switch (tok.tt) {
             .Def => try self.topLevelDef(),
-            .Typ => try self.typDecl(),
+            .Typ => try self.typeDecl(),
             // TODO
             else => return error.BadSyntax,
         }
@@ -533,6 +572,45 @@ pub const Parser = struct {
         return self.result;
     }
 };
+
+test "fun type" {
+    const t = std.testing;
+
+    const code =
+        \\typ Adder fun(int, int) int
+        \\typ Summer fun(..int) int
+    ;
+
+    var l: luv.Lexer = .empty;
+
+    var toks = try l.lexAll(t.allocator, code);
+    defer toks.deinit(t.allocator);
+
+    var p: Parser = .empty;
+
+    var nodelist = try p.parse(t.allocator, toks.items);
+    defer nodelist.deinit(t.allocator);
+
+    try t.expectEqualSlices(
+        luv.IR,
+        &[_]luv.IR{
+            .{ .irtype = .Identifier, .token = toks.items[1], .end_offset = 0 },
+            .{ .irtype = .BuiltinType, .token = toks.items[4], .end_offset = 0 },
+            .{ .irtype = .BuiltinType, .token = toks.items[6], .end_offset = 0 },
+            .{ .irtype = .BuiltinType, .token = toks.items[8], .end_offset = 0 },
+            .{ .irtype = .FunType, .token = toks.items[2], .end_offset = 3 },
+            .{ .irtype = .TypDecl, .token = toks.items[0], .end_offset = 5 },
+
+            .{ .irtype = .Identifier, .token = toks.items[10], .end_offset = 0 },
+            .{ .irtype = .BuiltinType, .token = toks.items[14], .end_offset = 0 },
+            .{ .irtype = .BuiltinType, .token = toks.items[16], .end_offset = 0 },
+            .{ .irtype = .FunVariadicType, .token = toks.items[11], .end_offset = 2 },
+            .{ .irtype = .TypDecl, .token = toks.items[9], .end_offset = 4 },
+            .{ .irtype = .LuvProgram, .token = toks.items[17], .end_offset = 11 },
+        },
+        nodelist.items,
+    );
+}
 
 test "typ decl" {
     const t = std.testing;
