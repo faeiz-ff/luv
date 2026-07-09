@@ -583,109 +583,105 @@ pub const Parser = struct {
     }
 };
 
-test "fun type" {
+const debug_parsemode = enum {
+    Expr,
+    FullProgram,
+};
+
+/// Given the code, expect the debugtype to be equal to the parsed IR
+/// debug_expecteds is a tuple that consists of { irtype, token_index, end_offset }
+inline fn debug_expectParseArray(
+    comptime code: []const u8,
+    comptime debug_expecteds: anytype,
+    comptime parse_mode: debug_parsemode,
+) !void {
     const t = std.testing;
 
+    var l: luv.Lexer = .empty;
+
+    var toks = try l.lexAll(t.allocator, code);
+    defer toks.deinit(t.allocator);
+
+    var p: Parser = .empty;
+
+    var nodelist = switch (parse_mode) {
+        .Expr => try p.parseExpr(t.allocator, toks.items),
+        .FullProgram => try p.parse(t.allocator, toks.items),
+    };
+    defer nodelist.deinit(t.allocator);
+
+    const expecteds = blk: {
+        var exs: [debug_expecteds.len]luv.IR = undefined;
+        inline for (debug_expecteds, 0..) |ex, i| {
+            exs[i] = .{ .irtype = ex.@"0", .token = toks.items[ex.@"1"], .end_offset = ex.@"2" };
+        }
+        break :blk exs;
+    };
+
+    try t.expectEqualSlices(luv.IR, &expecteds, nodelist.items);
+}
+
+test "fun type" {
     const code =
         \\typ Adder fun(int, int) int
         \\typ Summer fun(..int) int
     ;
 
-    var l: luv.Lexer = .empty;
+    const expecteds = .{
+        .{ .Identifier, 1, 0 },
+        .{ .BuiltinType, 4, 0 },
+        .{ .BuiltinType, 6, 0 },
+        .{ .BuiltinType, 8, 0 },
+        .{ .FunType, 2, 3 },
+        .{ .TypDecl, 0, 5 },
 
-    var toks = try l.lexAll(t.allocator, code);
-    defer toks.deinit(t.allocator);
+        .{ .Identifier, 10, 0 },
+        .{ .BuiltinType, 14, 0 },
+        .{ .BuiltinType, 16, 0 },
+        .{ .FunVariadicType, 11, 2 },
+        .{ .TypDecl, 9, 4 },
+        .{ .LuvProgram, 17, 11 },
+    };
 
-    var p: Parser = .empty;
-
-    var nodelist = try p.parse(t.allocator, toks.items);
-    defer nodelist.deinit(t.allocator);
-
-    try t.expectEqualSlices(
-        luv.IR,
-        &[_]luv.IR{
-            .{ .irtype = .Identifier, .token = toks.items[1], .end_offset = 0 },
-            .{ .irtype = .BuiltinType, .token = toks.items[4], .end_offset = 0 },
-            .{ .irtype = .BuiltinType, .token = toks.items[6], .end_offset = 0 },
-            .{ .irtype = .BuiltinType, .token = toks.items[8], .end_offset = 0 },
-            .{ .irtype = .FunType, .token = toks.items[2], .end_offset = 3 },
-            .{ .irtype = .TypDecl, .token = toks.items[0], .end_offset = 5 },
-
-            .{ .irtype = .Identifier, .token = toks.items[10], .end_offset = 0 },
-            .{ .irtype = .BuiltinType, .token = toks.items[14], .end_offset = 0 },
-            .{ .irtype = .BuiltinType, .token = toks.items[16], .end_offset = 0 },
-            .{ .irtype = .FunVariadicType, .token = toks.items[11], .end_offset = 2 },
-            .{ .irtype = .TypDecl, .token = toks.items[9], .end_offset = 4 },
-            .{ .irtype = .LuvProgram, .token = toks.items[17], .end_offset = 11 },
-        },
-        nodelist.items,
-    );
+    try debug_expectParseArray(code, expecteds, .FullProgram);
 }
 
 test "typ decl" {
-    const t = std.testing;
-
     const code =
         \\typ Value flo?
     ;
 
-    var l: luv.Lexer = .empty;
+    const expecteds = .{
+        .{ .Identifier, 1, 0 },
+        .{ .BuiltinType, 2, 0 },
+        .{ .OptionalType, 3, 1 },
+        .{ .TypDecl, 0, 3 },
+        .{ .LuvProgram, 4, 4 },
+    };
 
-    var toks = try l.lexAll(t.allocator, code);
-    defer toks.deinit(t.allocator);
-
-    var p: Parser = .empty;
-
-    var nodelist = try p.parse(t.allocator, toks.items);
-    defer nodelist.deinit(t.allocator);
-
-    try t.expectEqualSlices(
-        luv.IR,
-        &[_]luv.IR{
-            .{ .irtype = .Identifier, .token = toks.items[1], .end_offset = 0 },
-            .{ .irtype = .BuiltinType, .token = toks.items[2], .end_offset = 0 },
-            .{ .irtype = .OptionalType, .token = toks.items[3], .end_offset = 1 },
-            .{ .irtype = .TypDecl, .token = toks.items[0], .end_offset = 3 },
-            .{ .irtype = .LuvProgram, .token = toks.items[4], .end_offset = 4 },
-        },
-        nodelist.items,
-    );
+    try debug_expectParseArray(code, expecteds, .FullProgram);
 }
 
 test "top level def" {
-    const t = std.testing;
-
     const code =
         \\ def a int = 10
         \\ def c.d = 20
     ;
 
-    var l: luv.Lexer = .empty;
+    const expecteds = .{
+        .{ .Identifier, 1, 0 },
+        .{ .BuiltinType, 2, 0 },
+        .{ .IntLiteral, 4, 0 },
+        .{ .DefDecl, 0, 3 },
+        .{ .Identifier, 6, 0 },
+        .{ .Identifier, 8, 0 },
+        .{ .DotAccess, 7, 2 },
+        .{ .IntLiteral, 10, 0 },
+        .{ .DefUntypedDecl, 5, 4 },
+        .{ .LuvProgram, 11, 9 },
+    };
 
-    var toks = try l.lexAll(t.allocator, code);
-    defer toks.deinit(t.allocator);
-
-    var p: Parser = .empty;
-
-    var nodelist = try p.parse(t.allocator, toks.items);
-    defer nodelist.deinit(t.allocator);
-
-    try t.expectEqualSlices(
-        luv.IR,
-        &[_]luv.IR{
-            .{ .irtype = .Identifier, .token = toks.items[1], .end_offset = 0 },
-            .{ .irtype = .BuiltinType, .token = toks.items[2], .end_offset = 0 },
-            .{ .irtype = .IntLiteral, .token = toks.items[4], .end_offset = 0 },
-            .{ .irtype = .DefDecl, .token = toks.items[0], .end_offset = 3 },
-            .{ .irtype = .Identifier, .token = toks.items[6], .end_offset = 0 },
-            .{ .irtype = .Identifier, .token = toks.items[8], .end_offset = 0 },
-            .{ .irtype = .DotAccess, .token = toks.items[7], .end_offset = 2 },
-            .{ .irtype = .IntLiteral, .token = toks.items[10], .end_offset = 0 },
-            .{ .irtype = .DefUntypedDecl, .token = toks.items[5], .end_offset = 4 },
-            .{ .irtype = .LuvProgram, .token = toks.items[11], .end_offset = 9 },
-        },
-        nodelist.items,
-    );
+    try debug_expectParseArray(code, expecteds, .FullProgram);
 }
 
 test "error no leak" {
@@ -706,132 +702,78 @@ test "error no leak" {
 }
 
 test "postfixes" {
-    const t = std.testing;
-
     const code =
         \\ a?!?!.inner?
     ;
 
-    var l: luv.Lexer = .empty;
+    const expecteds = .{
+        .{ .Identifier, 0, 0 },
+        .{ .QuestionMarkPostFix, 1, 1 },
+        .{ .BangPostFix, 2, 2 },
+        .{ .QuestionMarkPostFix, 3, 3 },
+        .{ .BangPostFix, 4, 4 },
+        .{ .Identifier, 6, 0 },
+        .{ .DotAccess, 5, 6 },
+        .{ .QuestionMarkPostFix, 7, 7 },
+    };
 
-    var toks = try l.lexAll(t.allocator, code);
-    defer toks.deinit(t.allocator);
-
-    var p: Parser = .empty;
-
-    var nodelist = try p.parseExpr(t.allocator, toks.items);
-    defer nodelist.deinit(t.allocator);
-
-    try t.expectEqualSlices(
-        luv.IR,
-        &[_]luv.IR{
-            .{ .irtype = .Identifier, .token = toks.items[0], .end_offset = 0 },
-            .{ .irtype = .QuestionMarkPostFix, .token = toks.items[1], .end_offset = 1 },
-            .{ .irtype = .BangPostFix, .token = toks.items[2], .end_offset = 2 },
-            .{ .irtype = .QuestionMarkPostFix, .token = toks.items[3], .end_offset = 3 },
-            .{ .irtype = .BangPostFix, .token = toks.items[4], .end_offset = 4 },
-            .{ .irtype = .Identifier, .token = toks.items[6], .end_offset = 0 },
-            .{ .irtype = .DotAccess, .token = toks.items[5], .end_offset = 6 },
-            .{ .irtype = .QuestionMarkPostFix, .token = toks.items[7], .end_offset = 7 },
-        },
-        nodelist.items,
-    );
+    try debug_expectParseArray(code, expecteds, .Expr);
 }
 
 test "type dot access" {
-    const t = std.testing;
     const code =
         \\ Fraction[ieee.fixed.f8]
     ;
 
-    var l: luv.Lexer = .empty;
+    const expecteds = .{
+        .{ .Identifier, 0, 0 },
+        .{ .Identifier, 2, 0 },
+        .{ .Identifier, 4, 0 },
+        .{ .DotAccess, 3, 2 },
+        .{ .Identifier, 6, 0 },
+        .{ .DotAccess, 5, 4 },
+        .{ .GenericFulfill, 1, 6 },
+    };
 
-    var toks = try l.lexAll(t.allocator, code);
-    defer toks.deinit(t.allocator);
-
-    var p: Parser = .empty;
-
-    var nodelist = try p.parseExpr(t.allocator, toks.items);
-    defer nodelist.deinit(t.allocator);
-
-    try t.expectEqualSlices(
-        luv.IR,
-        &[_]luv.IR{
-            .{ .irtype = .Identifier, .token = toks.items[0], .end_offset = 0 },
-            .{ .irtype = .Identifier, .token = toks.items[2], .end_offset = 0 },
-            .{ .irtype = .Identifier, .token = toks.items[4], .end_offset = 0 },
-            .{ .irtype = .DotAccess, .token = toks.items[3], .end_offset = 2 },
-            .{ .irtype = .Identifier, .token = toks.items[6], .end_offset = 0 },
-            .{ .irtype = .DotAccess, .token = toks.items[5], .end_offset = 4 },
-            .{ .irtype = .GenericFulfill, .token = toks.items[1], .end_offset = 6 },
-        },
-        nodelist.items,
-    );
+    try debug_expectParseArray(code, expecteds, .Expr);
 }
 
 test "exprs with types" {
-    const t = std.testing;
     const code =
         \\ a *= b[[u32, i32]] - 10 % 2 == 0
     ;
 
-    var l: luv.Lexer = .empty;
+    const expecteds = .{
+        .{ .Identifier, 0, 0 },
+        .{ .Identifier, 2, 0 },
+        .{ .Identifier, 5, 0 },
+        .{ .Identifier, 7, 0 },
+        .{ .TupleType, 4, 2 },
+        .{ .GenericFulfill, 3, 4 },
+        .{ .IntLiteral, 11, 0 },
+        .{ .IntLiteral, 13, 0 },
+        .{ .Arithmetic, 12, 2 },
+        .{ .Arithmetic, 10, 8 },
+        .{ .IntLiteral, 15, 0 },
+        .{ .Relational, 14, 10 },
+        .{ .Assignment, 1, 12 },
+    };
 
-    var toks = try l.lexAll(t.allocator, code);
-    defer toks.deinit(t.allocator);
-
-    var p: Parser = .empty;
-
-    var nodelist = try p.parseExpr(t.allocator, toks.items);
-    defer nodelist.deinit(t.allocator);
-
-    try t.expectEqualSlices(
-        luv.IR,
-        &[_]luv.IR{
-            .{ .irtype = .Identifier, .token = toks.items[0], .end_offset = 0 },
-            .{ .irtype = .Identifier, .token = toks.items[2], .end_offset = 0 },
-            .{ .irtype = .Identifier, .token = toks.items[5], .end_offset = 0 },
-            .{ .irtype = .Identifier, .token = toks.items[7], .end_offset = 0 },
-            .{ .irtype = .TupleType, .token = toks.items[4], .end_offset = 2 },
-            .{ .irtype = .GenericFulfill, .token = toks.items[3], .end_offset = 4 },
-            .{ .irtype = .IntLiteral, .token = toks.items[11], .end_offset = 0 },
-            .{ .irtype = .IntLiteral, .token = toks.items[13], .end_offset = 0 },
-            .{ .irtype = .Arithmetic, .token = toks.items[12], .end_offset = 2 },
-            .{ .irtype = .Arithmetic, .token = toks.items[10], .end_offset = 8 },
-            .{ .irtype = .IntLiteral, .token = toks.items[15], .end_offset = 0 },
-            .{ .irtype = .Relational, .token = toks.items[14], .end_offset = 10 },
-            .{ .irtype = .Assignment, .token = toks.items[1], .end_offset = 12 },
-        },
-        nodelist.items,
-    );
+    try debug_expectParseArray(code, expecteds, .Expr);
 }
 
 test "basic functionality" {
-    const t = std.testing;
-
     const code =
         \\ c = a + b
     ;
 
-    var l: luv.Lexer = .empty;
+    const expecteds = .{
+        .{ .Identifier, 0, 0 },
+        .{ .Identifier, 2, 0 },
+        .{ .Identifier, 4, 0 },
+        .{ .Arithmetic, 3, 2 },
+        .{ .Assignment, 1, 4 },
+    };
 
-    var toks = try l.lexAll(t.allocator, code);
-    defer toks.deinit(t.allocator);
-
-    var p: Parser = .empty;
-
-    var nodelist = try p.parseExpr(t.allocator, toks.items);
-    defer nodelist.deinit(t.allocator);
-
-    try t.expectEqualSlices(
-        luv.IR,
-        &[_]luv.IR{
-            .{ .irtype = .Identifier, .token = toks.items[0], .end_offset = 0 },
-            .{ .irtype = .Identifier, .token = toks.items[2], .end_offset = 0 },
-            .{ .irtype = .Identifier, .token = toks.items[4], .end_offset = 0 },
-            .{ .irtype = .Arithmetic, .token = toks.items[3], .end_offset = 2 },
-            .{ .irtype = .Assignment, .token = toks.items[1], .end_offset = 4 },
-        },
-        nodelist.items,
-    );
+    try debug_expectParseArray(code, expecteds, .Expr);
 }
