@@ -104,7 +104,15 @@ pub const IR = struct {
 
     /// Used for reversing a slice in place, assumes a valid array IR
     pub fn reverseSlice(arr: []IR) void {
-        if (arr.len == 1) return;
+        if (arr.len <= 1) return;
+        reverseSliceInner(arr, 0);
+    }
+
+    fn reverseSliceInner(arr: []IR, nudge: usize) void {
+        if (arr.len == 1){
+            arr.ptr[nudge] = arr[0];
+            return;
+        }
 
         const parent_ir = arr[arr.len - 1];
 
@@ -112,8 +120,9 @@ pub const IR = struct {
         var child_ir = arr[child_index];
 
         while (true) {
-            reverseSlice(
+            reverseSliceInner(
                 arr[child_index - child_ir.end_offset .. child_index + 1],
+                nudge + 1,
             );
 
             if (child_index - child_ir.end_offset == 0) break;
@@ -122,12 +131,7 @@ pub const IR = struct {
             child_ir = arr[child_index];
         }
 
-        var i = arr.len - 1;
-        while (i > 0) : (i -= 1) {
-            arr.ptr[i] = arr[i - 1];
-        }
-
-        arr.ptr[0] = parent_ir;
+        arr.ptr[nudge] = parent_ir;
     }
 
     fn printTreeDepth(writer: *std.Io.Writer, arr: []IR, depth: usize) !void {
