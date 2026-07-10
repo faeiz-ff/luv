@@ -86,6 +86,10 @@ pub const IRType = enum {
     /// Has variadic number of children
     /// the contents will be types, last is the return type and before that is the variadic parameter type
     FunVariadicType,
+    /// Stores sym token
+    /// Has variadic number of children
+    /// the contents will be identifiers of the symtype
+    SymType,
 };
 
 /// Luv Intermediate Representation to store in an array.

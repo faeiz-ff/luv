@@ -68,6 +68,7 @@ pub const TokenType = enum {
     Any,
     Tag,
     Fit,
+    Sym,
     Own,
 
     If,

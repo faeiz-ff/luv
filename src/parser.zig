@@ -178,6 +178,31 @@ pub const Parser = struct {
         try self.addIR(if (hasVariadic) .FunVariadicType else .FunType, fun, self.currentIrIndex() - end_index);
     }
 
+    fn symType(self: *Parser) ParseError!void {
+        const end_index = self.currentIrIndex();
+        const sym = self.peekThenAdvance();
+
+        try self.expect(.Lbrace, "Expecting curly brackets for sym type");
+        self.advance();
+
+        try self.expect(.Identifier, "Expecting atleast a single identifier for sym type");
+        try self.addIR(.Identifier, self.peekThenAdvance(), 0);
+
+        if (self.matchOne(.Comma)) self.advance();
+
+        var tok = self.curr();
+        while (tok.tt == .Identifier) {
+            try self.addIR(.Identifier, self.peekThenAdvance(), 0);
+            if (self.matchOne(.Comma)) self.advance();
+            tok = self.curr();
+        }
+
+        try self.expect(.Rbrace, "Expecting a right curly bracket for closing sym type");
+        self.advance();
+
+        try self.addIR(.SymType, sym, self.currentIrIndex() - end_index);
+    }
+
     fn typeBase(self: *Parser) ParseError!void {
         const tok = self.curr();
         switch (tok.tt) {
@@ -206,6 +231,7 @@ pub const Parser = struct {
                 try self.addIR(.BuiltinType, tok, 0);
             },
             .Fun => return self.funType(),
+            .Sym => return self.symType(),
             // TODO
             else => return error.BadSyntax,
         }
@@ -636,6 +662,26 @@ inline fn debug_expectParseArray(
     };
 
     try t.expectEqualSlices(luv.IR, &expecteds, nodelist.items);
+}
+
+test "sym type" {
+    const code =
+        \\ typ Status sym {
+        \\     Online
+        \\     Offline
+        \\ }
+    ;
+
+    const expecteds = .{
+        .{ .Identifier, 1, 0 },
+        .{ .Identifier, 4, 0 },
+        .{ .Identifier, 5, 0 },
+        .{ .SymType, 2, 2 },
+        .{ .TypDecl, 0, 4 },
+        .{ .LuvProgram, 7, 5 },
+    };
+
+    try debug_expectParseArray(code, expecteds, .FullProgram);
 }
 
 test "fun type" {
