@@ -90,6 +90,16 @@ pub const IRType = enum {
     /// Has variadic number of children
     /// the contents will be identifiers of the symtype
     SymType,
+    /// Stores identifier token
+    /// Unary, always have one child: the type
+    TypedIdentifier,
+    /// Stores def token
+    /// Unary, always have one child
+    DefDecorator,
+    /// Stores fit token
+    /// Has variadic number of children
+    /// the contents will be bare TypedIdentifier or a DefDecorated one
+    FitType,
 };
 
 /// Luv Intermediate Representation to store in an array.

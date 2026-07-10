@@ -203,6 +203,64 @@ pub const Parser = struct {
         try self.addIR(.SymType, sym, self.currentIrIndex() - end_index);
     }
 
+    fn fitLiteralType(self: *Parser) ParseError!void {
+        const end_index = self.currentIrIndex();
+        const fit = self.peekThenAdvance();
+
+        try self.expect(.Lbrace, "Expecting curly brackets for fit type specification");
+        self.advance();
+
+        var def: ?luv.Token = null;
+        if (self.matchOne(.Def)) {
+            def = self.peekThenAdvance();
+        }
+
+        var id_end_index = self.currentIrIndex();
+        try self.expect(.Identifier, "Expecting atleast a single attribute inside fit type specification");
+        var id = self.peekThenAdvance();
+
+        try self.typeRule();
+
+        try self.addIR(.TypedIdentifier, id, self.currentIrIndex() - id_end_index);
+
+        if (def) |tok| {
+            try self.addIR(.DefDecorator, tok, self.currentIrIndex() - id_end_index);
+        }
+
+        if (self.matchOne(.Comma)) self.advance();
+
+        var tok = self.curr();
+        while (tok.tt == .Identifier or tok.tt == .Def) {
+            def = null;
+            if (self.matchOne(.Def)) {
+                def = self.peekThenAdvance();
+            }
+
+            id_end_index = self.currentIrIndex();
+            try self.expect(.Identifier, "Expecting an Identifier after def attribute decorator in fit literal type");
+            id = self.peekThenAdvance();
+
+            try self.typeRule();
+
+            try self.addIR(.TypedIdentifier, id, self.currentIrIndex() - id_end_index);
+
+            if (def) |t| {
+                try self.addIR(.DefDecorator, t, self.currentIrIndex() - id_end_index);
+            }
+
+            if (self.matchOne(.Comma)) self.advance();
+
+            tok = self.curr();
+        }
+
+        if (self.matchOne(.Comma)) self.advance();
+
+        try self.expect(.Rbrace, "Expecting a right curly bracket for closing fit type");
+        self.advance();
+
+        try self.addIR(.FitType, fit, self.currentIrIndex() - end_index);
+    }
+
     fn typeBase(self: *Parser) ParseError!void {
         const tok = self.curr();
         switch (tok.tt) {
@@ -232,6 +290,7 @@ pub const Parser = struct {
             },
             .Fun => return self.funType(),
             .Sym => return self.symType(),
+            .Fit => return self.fitLiteralType(),
             // TODO
             else => return error.BadSyntax,
         }
@@ -663,6 +722,31 @@ inline fn debug_expectParseArray(
 
     try t.expectEqualSlices(luv.IR, &expecteds, nodelist.items);
 }
+
+test "fit literal type" {
+    const code =
+        \\ typ Safe fit {
+        \\     def password int&
+        \\     money int
+        \\ }
+    ;
+
+    const expecteds = .{
+        .{ .Identifier, 1, 0 },
+        .{ .BuiltinType, 6, 0 },
+        .{ .ViewType, 7, 1 },
+        .{ .TypedIdentifier, 5, 2 },
+        .{ .DefDecorator, 4, 3 },
+        .{ .BuiltinType, 9, 0 },
+        .{ .TypedIdentifier, 8, 1 },
+        .{ .FitType, 2, 6 },
+        .{ .TypDecl, 0, 8 },
+        .{ .LuvProgram, 11, 9 },
+    };
+
+    try debug_expectParseArray(code, expecteds, .FullProgram);
+}
+
 
 test "sym type" {
     const code =
