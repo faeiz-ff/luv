@@ -43,7 +43,8 @@ pub const IRType = enum {
     BangPostFix,
     /// Stores left square token that opens generic fulfill
     /// Has variadic number of children
-    GenericFulfill,
+    /// Starts with the reciever
+    GenericFulfillPostFix,
     /// Stores dot token
     /// Binary, always have two children: base and accessId
     DotAccess,

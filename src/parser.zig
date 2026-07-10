@@ -157,16 +157,16 @@ pub const Parser = struct {
         try self.typeRule();
 
         tok = self.curr();
-        while (tok.tt == .Comma) {
+        while (tok.tt == .Comma and !hasVariadic) {
             self.advance();
-            switch (tok.tt) {
-                .DotDot => {
-                    self.advance();
-                    hasVariadic = true;
-                    try self.typeRule();
-                },
-                else => try self.typeRule(),
+            tok = self.curr();
+            if (tok.tt == .DotDot) {
+                self.advance();
+                hasVariadic = true;
             }
+
+            try self.typeRule();
+
             tok = self.curr();
         }
 
@@ -267,24 +267,41 @@ pub const Parser = struct {
         try self.expect(.Rsquare, "Expecting a right square bracket for closing generic fulfillment");
         self.advance();
 
-        try self.addIR(.GenericFulfill, lsquare, self.currentIrIndex() - end_index);
+        try self.addIR(.GenericFulfillPostFix, lsquare, self.currentIrIndex() - end_index);
     }
 
     fn primaryExpr(self: *Parser) ParseError!void {
-        const tok = self.peekThenAdvance();
+        const tok = self.curr();
 
         switch (tok.tt) {
-            .IntLiteral => try self.addIR(.IntLiteral, tok, 0),
-            .FloatLiteral => try self.addIR(.FloatLiteral, tok, 0),
-            .StringLiteral => try self.addIR(.StringLiteral, tok, 0),
-            .Identifier => try self.addIR(.Identifier, tok, 0),
+            .IntLiteral => {
+                self.advance();
+                try self.addIR(.IntLiteral, tok, 0);
+            },
+            .FloatLiteral => {
+                self.advance();
+                try self.addIR(.FloatLiteral, tok, 0);
+            },
+            .StringLiteral => {
+                self.advance();
+                try self.addIR(.StringLiteral, tok, 0);
+            },
+            .Identifier => {
+                self.advance();
+                try self.addIR(.Identifier, tok, 0);
+            },
             // TODO tuple literal
             .Lparen => {
+                self.advance();
                 try self.expression();
                 try self.expect(.Rparen, "Expecting closing right parentheses");
                 self.advance();
             },
-            .Int, .Str, .Bol, .Flo => try self.addIR(.BuiltinType, tok, 0),
+            .Int, .Str, .Bol, .Flo => {
+                self.advance();
+                try self.addIR(.BuiltinType, tok, 0);
+            },
+
             // TODO
             else => return error.BadSyntax,
         }
@@ -673,6 +690,7 @@ test "top level def" {
         .{ .BuiltinType, 2, 0 },
         .{ .IntLiteral, 4, 0 },
         .{ .DefDecl, 0, 3 },
+
         .{ .Identifier, 6, 0 },
         .{ .Identifier, 8, 0 },
         .{ .DotAccess, 7, 2 },
@@ -732,7 +750,7 @@ test "type dot access" {
         .{ .DotAccess, 3, 2 },
         .{ .Identifier, 6, 0 },
         .{ .DotAccess, 5, 4 },
-        .{ .GenericFulfill, 1, 6 },
+        .{ .GenericFulfillPostFix, 1, 6 },
     };
 
     try debug_expectParseArray(code, expecteds, .Expr);
@@ -749,7 +767,7 @@ test "exprs with types" {
         .{ .Identifier, 5, 0 },
         .{ .Identifier, 7, 0 },
         .{ .TupleType, 4, 2 },
-        .{ .GenericFulfill, 3, 4 },
+        .{ .GenericFulfillPostFix, 3, 4 },
         .{ .IntLiteral, 11, 0 },
         .{ .IntLiteral, 13, 0 },
         .{ .Arithmetic, 12, 2 },
