@@ -17,7 +17,7 @@ tagType: 'tag' genericDeclaration? '{' (ID typeRule ';'?)+ '}';
 
 nomType: 'nom' genericDeclaration? '{' ('def'? '^'? ID typeRule ';'?)* '}';
 
-symType: 'sym' '{' (ID ('=' expr)? (';' | ',')?)+ '}';
+symType: 'sym' '{' (ID ('=' expr)? ','?)+ '}';
 
 fitType: 'fit' genericDeclaration? '{' ('def'? (ID (typeRule | 'Own' '?') | methodDecl) ';'?)+ '}';
 

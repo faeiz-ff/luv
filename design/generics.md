@@ -22,3 +22,33 @@ fun main() {
 
 Namespaces cannot be generic, `luv` doesnt do type monomorphization.
 Instead, for methods, the functions itself may be generics.
+
+Every generics will have a type of `generic` which needs to be fulfilled first for it to have a qualified type.
+This type is internal, same as a 'type' type, cannot be accessed.
+This means that a generic function cannot be typed or even used, but it could when its generics fulfilled.
+
+```luv
+
+typ Stringable fit {
+    toStr(Own) str
+}
+
+# Not a fully qualified type
+fun logger[T Stringable](thing T) T {
+    print(thing.toStr())
+    return thing
+}
+
+typ Int nom { item int }
+
+fun Int.toStr(own Int) str {
+    return own.item.toStr()
+}
+
+def Int.logger = logger[Int]
+# Int.logger is of type fun(Int) Int
+
+typ Logable fit {
+    logger(Own) Own
+}
+```

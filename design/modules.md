@@ -41,6 +41,5 @@ The main function that will run is in the sourced file in the cli.
 
 The export behavior is different accross concepts:
 - fun main -> always file private
-- nom typ -> name and fields are separate exportable, if some fields are private, the raw constructor is private
-- all other typ (except nom), fun, and def -> if name is public, all of its behavior are public 
+- typ, fun, and def -> if name is public, all of its behavior are public 
 - namespaces -> can be extended inside the module, with its private/public sections, otherwise readonly outside of module
