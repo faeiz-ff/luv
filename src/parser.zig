@@ -74,26 +74,36 @@ pub const Parser = struct {
         return false;
     }
 
+    fn matchOneAdvance(self: *Parser, tt: luv.TokenType) bool {
+        if (self.curr().tt == tt) {
+            self.advance();
+            return true;
+        }
+        return false;
+    }
+
     fn expect(self: *Parser, tt: luv.TokenType, errMsg: []const u8) ParseError!void {
-        var tok = self.curr();
-        if (tok.tt == tt) {
+        if (self.matchOne(tt)) {
             return;
         }
 
-        tok = self.tokens[self.token_index - 1];
+        const tok = self.curr();
         if (self.errors) |*err| {
-            const pos: luv.Position = .{
-                .x = tok.pos.x - 1 + @as(u32, @intCast(tok.lexeme.len)),
-                .y = tok.pos.y,
-            };
             try err
                 .err("Unexpected token")
-                .withFileName("testing", pos)
-                .withLineMsg(self.code.?, pos, errMsg)
+                .withFileName("testing", tok.pos)
+                .withLineMsg(self.code.?, tok.pos, errMsg)
                 .flush();
         }
 
         return ParseError.BadSyntax;
+    }
+
+    fn expectAdvance(self: *Parser, tt: luv.TokenType, errMsg: []const u8) ParseError!void {
+        if (self.matchOneAdvance(tt)) {
+            return;
+        }
+        try self.expect(tt, errMsg);
     }
 
     fn addIR(self: *Parser, irtype: luv.IRType, token: luv.Token, end_offset: usize) ParseError!void {
@@ -110,55 +120,55 @@ pub const Parser = struct {
     }
 
     fn tupleOrGroupingType(self: *Parser) ParseError!void {
+        const end_index = self.currentIrIndex();
         const lsquare = self.peekThenAdvance();
+        var isTuple = false;
 
-        if (self.matchOne(.Rsquare)) {
-            self.advance();
-
+        if (self.matchOneAdvance(.Rsquare)) {
             try self.addIR(.TupleType, lsquare, 0);
-
             return;
         }
 
-        const end_index = self.currentIrIndex();
-
         try self.typeRule();
 
-        if (self.matchOne(.Comma)) {
-            while (self.matchOne(.Comma)) {
-                self.advance();
-                try self.typeRule();
-            }
+        // the first condition if correct will advance then checks the second condition
+        while (self.matchOneAdvance(.Comma) and !self.matchOne(.Rsquare)) {
+            try self.typeRule();
+            isTuple = true;
+        }
+        try self.expectAdvance(.Rsquare, "Expecting a right square bracket for closing type");
 
-            try self.expect(.Rsquare, "Expecting a right square bracket for closing tuple type");
-            self.advance();
-
+        if (isTuple) {
             try self.addIR(.TupleType, lsquare, self.currentIrIndex() - end_index);
-        } else {
-            try self.expect(.Rsquare, "Expecting a right square bracket for closing type grouping");
-            self.advance();
         }
     }
 
     fn funType(self: *Parser) ParseError!void {
         const end_index = self.currentIrIndex();
         const fun = self.peekThenAdvance();
-
-        try self.expect(.Lparen, "Expecting a parentheses for function type parameters");
-
         var hasVariadic = false;
-        while (true) : (if (!self.matchOne(.Comma) or hasVariadic) break) {
-            self.advance();
-            if (self.matchOne(.DotDot)) {
-                self.advance();
+
+        try self.expectAdvance(.Lparen, "Expecting a parentheses for function type parameters");
+
+        while (true) : (if ((!self.matchOneAdvance(.Comma) or hasVariadic) or self.matchOne(.Rparen)) break) {
+            if (self.matchOneAdvance(.DotDot)) {
                 hasVariadic = true;
             }
 
             try self.typeRule();
         }
 
-        try self.expect(.Rparen, "Expecting a right parentheses for closing function type parameters");
-        self.advance();
+        if (hasVariadic and self.matchOne(.DotDot)) {
+            if (self.errors) |*err| {
+                try err
+                    .err("Invalid syntax")
+                    .withLineMsg(self.code.?, self.curr().pos, "Cannot have multiple variadic parameters")
+                    .flush();
+            }
+            return error.BadSyntax;
+        }
+
+        try self.expectAdvance(.Rparen, "Expecting a right parentheses for closing function type parameters");
 
         try self.typeRule();
 
@@ -169,8 +179,7 @@ pub const Parser = struct {
         const end_index = self.currentIrIndex();
         const sym = self.peekThenAdvance();
 
-        try self.expect(.Lbrace, "Expecting curly brackets for sym type");
-        self.advance();
+        try self.expectAdvance(.Lbrace, "Expecting curly brackets for sym type");
 
         var isFirstAttribute = true;
         while (true) : (if (!self.matchOne(.Identifier)) break) {
@@ -179,12 +188,10 @@ pub const Parser = struct {
 
             try self.addIR(.Identifier, self.peekThenAdvance(), 0);
 
-            if (self.matchOne(.Comma)) self.advance();
-
+            _ = self.matchOneAdvance(.Comma);
         }
 
-        try self.expect(.Rbrace, "Expecting a right curly bracket for closing sym type");
-        self.advance();
+        try self.expectAdvance(.Rbrace, "Expecting a right curly bracket for closing sym type");
 
         try self.addIR(.SymType, sym, self.currentIrIndex() - end_index);
     }
@@ -193,8 +200,7 @@ pub const Parser = struct {
         const end_index = self.currentIrIndex();
         const fit = self.peekThenAdvance();
 
-        try self.expect(.Lbrace, "Expecting curly brackets for fit type specification");
-        self.advance();
+        try self.expectAdvance(.Lbrace, "Expecting curly brackets for fit type specification");
 
         const tokens = &[_]luv.TokenType{ .Identifier, .Def };
         var isFirstAttribute = true;
@@ -223,11 +229,10 @@ pub const Parser = struct {
                 try self.addIR(.DefDecorator, tok, self.currentIrIndex() - id_end_index);
             }
 
-            if (self.matchOne(.Comma)) self.advance();
+            _ = self.matchOneAdvance(.Comma);
         }
 
-        try self.expect(.Rbrace, "Expecting a right curly bracket for closing fit type");
-        self.advance();
+        try self.expectAdvance(.Rbrace, "Expecting a right curly bracket for closing fit type");
 
         try self.addIR(.FitType, fit, self.currentIrIndex() - end_index);
     }
@@ -315,13 +320,11 @@ pub const Parser = struct {
 
         try self.typeRule();
 
-        while (self.matchOne(.Comma)) {
-            self.advance();
+        while (self.matchOneAdvance(.Comma) and !self.matchOne(.Rsquare)) {
             try self.typeRule();
         }
 
-        try self.expect(.Rsquare, "Expecting a right square bracket for closing generic fulfillment");
-        self.advance();
+        try self.expectAdvance(.Rsquare, "Expecting a right square bracket for closing generic fulfillment");
 
         try self.addIR(.GenericFulfillPostFix, lsquare, self.currentIrIndex() - end_index);
     }
@@ -350,8 +353,7 @@ pub const Parser = struct {
             .Lparen => {
                 self.advance();
                 try self.expression();
-                try self.expect(.Rparen, "Expecting closing right parentheses");
-                self.advance();
+                try self.expectAdvance(.Rparen, "Expecting closing right parentheses");
             },
             .Int, .Str, .Bol, .Flo => {
                 self.advance();
@@ -536,9 +538,8 @@ pub const Parser = struct {
 
         try self.addIR(.Identifier, id, 0);
 
-        var tok = self.curr();
-        switch (tok.tt) {
-            .Dot => while (tok.tt == .Dot) {
+        switch (self.curr().tt) {
+            .Dot => while (self.matchOne(.Dot)) {
                 const dot = self.peekThenAdvance();
 
                 try self.expect(.Identifier, "Expecting identifier after dot '.' for namespaced identifier");
@@ -547,17 +548,14 @@ pub const Parser = struct {
                 try self.addIR(.Identifier, access, 0);
 
                 try self.addIR(.DotAccess, dot, self.currentIrIndex() - end_index);
-
-                tok = self.curr();
             },
             // TODO destructure
             // TODO optionals and view infer
             else => {},
         }
 
-        tok = self.curr();
         var isTyped = false;
-        switch (tok.tt) {
+        switch (self.curr().tt) {
             .Equal => {},
             else => {
                 try self.typeRule();
@@ -565,8 +563,7 @@ pub const Parser = struct {
             },
         }
 
-        try self.expect(.Equal, "Expecting '=' after an identifier in def declaration");
-        self.advance();
+        try self.expectAdvance(.Equal, "Expecting '=' after an identifier in def declaration");
 
         try self.expression();
 
@@ -583,9 +580,8 @@ pub const Parser = struct {
 
         try self.addIR(.Identifier, id, 0);
 
-        var tok = self.curr();
-        switch (tok.tt) {
-            .Dot => while (tok.tt == .Dot) {
+        switch (self.curr().tt) {
+            .Dot => while (self.matchOne(.Dot)) {
                 const dot = self.peekThenAdvance();
 
                 try self.expect(.Identifier, "Expecting identifier after dot '.' for namespaced identifier");
@@ -594,8 +590,6 @@ pub const Parser = struct {
                 try self.addIR(.Identifier, access, 0);
 
                 try self.addIR(.DotAccess, dot, self.result.items.len - end_index);
-
-                tok = self.curr();
             },
             else => {},
         }
@@ -613,7 +607,7 @@ pub const Parser = struct {
             // TODO
             else => return error.BadSyntax,
         }
-        if (self.matchOne(.Semicolon)) self.advance();
+        _ = self.matchOneAdvance(.Semicolon);
     }
 
     pub fn parse(
@@ -692,6 +686,37 @@ inline fn debug_expectParseArray(
     };
 
     try t.expectEqualSlices(luv.IR, &expecteds, nodelist.items);
+}
+
+test "trailing comma" {
+    const code =
+        \\typ a sym { a, b, }
+        \\typ c fit { d e, }
+        \\typ f fun (g,) h
+    ;
+
+    const expecteds = .{
+        .{ .Identifier, 1, 0 },
+        .{ .Identifier, 4, 0 },
+        .{ .Identifier, 6, 0 },
+        .{ .SymType, 2, 2 },
+        .{ .TypDecl, 0, 4 },
+
+        .{ .Identifier, 10, 0 },
+        .{ .Identifier, 14, 0 },
+        .{ .TypedIdentifier, 13, 1 },
+        .{ .FitType, 11, 2 },
+        .{ .TypDecl, 9, 4 },
+
+        .{ .Identifier, 18, 0 },
+        .{ .Identifier, 21, 0 },
+        .{ .Identifier, 24, 0 },
+        .{ .FunType, 19, 2 },
+        .{ .TypDecl, 17, 4 },
+        .{ .LuvProgram, 25, 15 },
+    };
+
+    try debug_expectParseArray(code, expecteds, .FullProgram);
 }
 
 test "fit literal type" {

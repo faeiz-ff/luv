@@ -13,21 +13,21 @@ topLevelStmt
 
 useStmt: use' 'test'? ID '=' STRING_LITERAL;
 
-tagType: 'tag' genericDeclaration? '{' (ID typeRule ';'?)+ '}';
+tagType: 'tag' genericDeclaration? '{' (ID typeRule ','?)+ '}';
 
-nomType: 'nom' genericDeclaration? '{' ('def'? '^'? ID typeRule ';'?)* '}';
+nomType: 'nom' genericDeclaration? '{' ('def'? '^'? ID typeRule ','?)* '}';
 
 symType: 'sym' '{' (ID ('=' expr)? ','?)+ '}';
 
-fitType: 'fit' genericDeclaration? '{' ('def'? (ID (typeRule | 'Own' '?') | methodDecl) ';'?)+ '}';
+fitType: 'fit' genericDeclaration? '{' ('def'? (ID (typeRule | 'Own' '?') | methodDecl) ','?)+ '}';
 
 typStmt: 'typ' '^'? nameSpacedIdentifier (tagType | nomType | fitType | typeRule);
 
-methodDecl: ID '(' ((typeRule | 'Own') (',' (typeRule | 'Own'))* (',' '..' (typeRule | 'Own'))? | ('..' (typeRule | 'Own')))? ')' (typeRule | 'Own');
+methodDecl: ID '(' ((typeRule | 'Own') (',' (typeRule | 'Own'))* (',' '..' (typeRule | 'Own'))? | ('..' (typeRule | 'Own')))? ','? ')' (typeRule | 'Own');
 
-genericDeclaration: '[' ID typeRule (',' ID typeRule)* ']';
+genericDeclaration: '[' ID typeRule (',' ID typeRule)* ','? ']';
 
-genericFulfill: '[' typeRule (',' typeRule)* ']';
+genericFulfill: '[' typeRule (',' typeRule)* ','? ']';
 
 typeRule: typePostFix ('!' typePostFix)?;
 
@@ -35,11 +35,11 @@ typePostFix: typeBase ('&' | '?' | genericFulfill)*;
 
 typeBase
     : nameSpacedIdentifier
-    | 'fun' '(' (typeRule (',' typeRule)* (',' '..' typeRule)? | '..' typeRule)? ')' typeRule
+    | 'fun' '(' (typeRule (',' typeRule)* (',' '..' typeRule)? | '..' typeRule)? ','? ')' typeRule
     | '[' typeRule ']'
     | '[' typeRule (',' typeRule)+ ']'
     | '[' ']'
-    | 'fit' '{' ('def'? (ID typeRule | methodDecl) ';'?)* '}'
+    | 'fit' '{' ('def'? (ID typeRule | methodDecl) ','?)* '}'
     | symType
     | 'nil'
     | 'any'
@@ -74,7 +74,7 @@ defStmt: 'def' patternMatch typePattern? '=' expr;
 
 varStmt: 'var' patternMatch typePattern? '=' expr;
 
-funParams: '(' (ID typeRule (',' ID typeRule)* (',' '..' ID typeRule)? | '..' ID typeRule)? ')';
+funParams: '(' (ID typeRule (',' ID typeRule)* (',' '..' ID typeRule)? | '..' ID typeRule)? ','? ')';
 
 funStmt
     : 'fun' '^'? nameSpacedIdentifier genericDeclaration? funParams typeRule? blockStmt
@@ -137,7 +137,7 @@ primaryExpr
 
 objLiteral: '{' (('..' postFixExpr | 'def'? ID '=' expr) ','?)+ '}';
 
-tupLiteral: '(' (orExpr (',' orExpr)*)? ')';
+tupLiteral: '(' (orExpr (',' orExpr)*)? ','? ')';
 
 literal
     : STRING_LITERAL
@@ -150,7 +150,7 @@ literal
     | 'nil'
     ;
 
-callSuffix: '(' ('..'? expr (',' '..'? expr)*)? ')';
+callSuffix: '(' ('..'? expr (',' '..'? expr)*)? ','? ')';
 
 dotSuffix
     : '.' ID
