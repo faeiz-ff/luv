@@ -145,29 +145,16 @@ pub const Parser = struct {
         const fun = self.peekThenAdvance();
 
         try self.expect(.Lparen, "Expecting a parentheses for function type parameters");
-        self.advance();
 
-        var tok = self.curr();
         var hasVariadic = false;
-        if (tok.tt == .DotDot) {
+        while (true) : (if (!self.matchOne(.Comma) or hasVariadic) break) {
             self.advance();
-            hasVariadic = true;
-        }
-
-        try self.typeRule();
-
-        tok = self.curr();
-        while (tok.tt == .Comma and !hasVariadic) {
-            self.advance();
-            tok = self.curr();
-            if (tok.tt == .DotDot) {
+            if (self.matchOne(.DotDot)) {
                 self.advance();
                 hasVariadic = true;
             }
 
             try self.typeRule();
-
-            tok = self.curr();
         }
 
         try self.expect(.Rparen, "Expecting a right parentheses for closing function type parameters");
@@ -185,16 +172,15 @@ pub const Parser = struct {
         try self.expect(.Lbrace, "Expecting curly brackets for sym type");
         self.advance();
 
-        try self.expect(.Identifier, "Expecting atleast a single identifier for sym type");
-        try self.addIR(.Identifier, self.peekThenAdvance(), 0);
+        var isFirstAttribute = true;
+        while (true) : (if (!self.matchOne(.Identifier)) break) {
+            if (isFirstAttribute) try self.expect(.Identifier, "Expecting atleast a single identifier for sym type");
+            isFirstAttribute = false;
 
-        if (self.matchOne(.Comma)) self.advance();
-
-        var tok = self.curr();
-        while (tok.tt == .Identifier) {
             try self.addIR(.Identifier, self.peekThenAdvance(), 0);
+
             if (self.matchOne(.Comma)) self.advance();
-            tok = self.curr();
+
         }
 
         try self.expect(.Rbrace, "Expecting a right curly bracket for closing sym type");
@@ -210,50 +196,35 @@ pub const Parser = struct {
         try self.expect(.Lbrace, "Expecting curly brackets for fit type specification");
         self.advance();
 
-        var def: ?luv.Token = null;
-        if (self.matchOne(.Def)) {
-            def = self.peekThenAdvance();
-        }
+        const tokens = &[_]luv.TokenType{ .Identifier, .Def };
+        var isFirstAttribute = true;
 
-        var id_end_index = self.currentIrIndex();
-        try self.expect(.Identifier, "Expecting atleast a single attribute inside fit type specification");
-        var id = self.peekThenAdvance();
-
-        try self.typeRule();
-
-        try self.addIR(.TypedIdentifier, id, self.currentIrIndex() - id_end_index);
-
-        if (def) |tok| {
-            try self.addIR(.DefDecorator, tok, self.currentIrIndex() - id_end_index);
-        }
-
-        if (self.matchOne(.Comma)) self.advance();
-
-        var tok = self.curr();
-        while (tok.tt == .Identifier or tok.tt == .Def) {
-            def = null;
+        while (true) : (if (!self.match(tokens)) break) {
+            var def: ?luv.Token = null;
             if (self.matchOne(.Def)) {
                 def = self.peekThenAdvance();
             }
 
-            id_end_index = self.currentIrIndex();
-            try self.expect(.Identifier, "Expecting an Identifier after def attribute decorator in fit literal type");
-            id = self.peekThenAdvance();
+            if (isFirstAttribute) {
+                try self.expect(.Identifier, "Expecting atleast a single attribute in a fit literal type");
+            } else {
+                try self.expect(.Identifier, "Expecting an Identifier after def attribute decorator in fit literal type");
+            }
+            isFirstAttribute = false;
+
+            const id_end_index = self.currentIrIndex();
+            const id = self.peekThenAdvance();
 
             try self.typeRule();
 
             try self.addIR(.TypedIdentifier, id, self.currentIrIndex() - id_end_index);
 
-            if (def) |t| {
-                try self.addIR(.DefDecorator, t, self.currentIrIndex() - id_end_index);
+            if (def) |tok| {
+                try self.addIR(.DefDecorator, tok, self.currentIrIndex() - id_end_index);
             }
 
             if (self.matchOne(.Comma)) self.advance();
-
-            tok = self.curr();
         }
-
-        if (self.matchOne(.Comma)) self.advance();
 
         try self.expect(.Rbrace, "Expecting a right curly bracket for closing fit type");
         self.advance();
@@ -746,7 +717,6 @@ test "fit literal type" {
 
     try debug_expectParseArray(code, expecteds, .FullProgram);
 }
-
 
 test "sym type" {
     const code =
