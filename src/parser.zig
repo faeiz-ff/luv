@@ -150,12 +150,18 @@ pub const Parser = struct {
 
         try self.expectAdvance(.Lparen, "Expecting a parentheses for function type parameters");
 
-        while (true) : (if ((!self.matchOneAdvance(.Comma) or hasVariadic) or self.matchOne(.Rparen)) break) {
-            if (self.matchOneAdvance(.DotDot)) {
+        while (true) : (if (!self.matchOneAdvance(.Comma) or hasVariadic or self.matchOne(.Rparen)) break) {
+            if (self.matchOne(.DotDot)) {
+                const dotdot = self.peekThenAdvance();
+                const variadic_end_index = self.currentIrIndex();
                 hasVariadic = true;
-            }
 
-            try self.typeRule();
+                try self.typeRule();
+
+                try self.addIR(.RestPrefix, dotdot, self.currentIrIndex() - variadic_end_index);
+            } else {
+                try self.typeRule();
+            }
         }
 
         if (hasVariadic and self.matchOne(.DotDot)) {
@@ -172,7 +178,7 @@ pub const Parser = struct {
 
         try self.typeRule();
 
-        try self.addIR(if (hasVariadic) .FunVariadicType else .FunType, fun, self.currentIrIndex() - end_index);
+        try self.addIR(.FunType, fun, self.currentIrIndex() - end_index);
     }
 
     fn symType(self: *Parser) ParseError!void {
@@ -555,12 +561,9 @@ pub const Parser = struct {
         }
 
         var isTyped = false;
-        switch (self.curr().tt) {
-            .Equal => {},
-            else => {
-                try self.typeRule();
-                isTyped = true;
-            },
+        if (!self.matchOne(.Equal)) {
+            try self.typeRule();
+            isTyped = true;
         }
 
         try self.expectAdvance(.Equal, "Expecting '=' after an identifier in def declaration");
@@ -779,10 +782,11 @@ test "fun type" {
 
         .{ .Identifier, 10, 0 },
         .{ .BuiltinType, 14, 0 },
+        .{ .RestPrefix, 13, 1 },
         .{ .BuiltinType, 16, 0 },
-        .{ .FunVariadicType, 11, 2 },
-        .{ .TypDecl, 9, 4 },
-        .{ .LuvProgram, 17, 11 },
+        .{ .FunType, 11, 3 },
+        .{ .TypDecl, 9, 5 },
+        .{ .LuvProgram, 17, 12 },
     };
 
     try debug_expectParseArray(code, expecteds, .FullProgram);

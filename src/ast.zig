@@ -81,11 +81,11 @@ pub const IRType = enum {
     /// Stores fun token
     /// Has variadic number of children
     /// the contents will be types, last of which is the return type
+    /// may contain rest prefix before the return type
     FunType,
-    /// Stores fun token
-    /// Has variadic number of children
-    /// the contents will be types, last is the return type and before that is the variadic parameter type
-    FunVariadicType,
+    /// Stores dotdot token
+    /// Unary, always have one child
+    RestPrefix,
     /// Stores sym token
     /// Has variadic number of children
     /// the contents will be identifiers of the symtype
