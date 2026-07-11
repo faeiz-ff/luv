@@ -246,7 +246,6 @@ pub const Parser = struct {
                             .err("Redundant syntax")
                             .withLineMsg(self.code.?, id.pos, "This fit attribute is a method, 'def' is redundant")
                             .flush();
-
                     }
                     return error.BadSyntax;
                 }
@@ -418,6 +417,31 @@ pub const Parser = struct {
         }
     }
 
+    fn callPostFix(self: *Parser, end_index: usize) ParseError!void {
+        const tok = self.peekThenAdvance();
+        if (self.matchOneAdvance(.Rparen)) {
+            try self.addIR(.CallPostFix, tok, end_index);
+            return;
+        }
+
+        while (true) : (if (!self.matchOneAdvance(.Comma) or self.matchOne(.Rparen)) break) {
+            if (self.matchOne(.DotDot)) {
+                const dotdot = self.peekThenAdvance();
+                const spread_end_index = self.currentIrIndex();
+
+                try self.expression();
+
+                try self.addIR(.RestPrefix, dotdot, self.currentIrIndex() - spread_end_index);
+            } else {
+                try self.expression();
+            }
+        }
+
+        try self.expectAdvance(.Rparen, "Expecting a right parentheses for closing a function call");
+
+        try self.addIR(.CallPostFix, tok, self.currentIrIndex() - end_index);
+    }
+
     fn postFixExpr(self: *Parser) ParseError!void {
         const end_index = self.currentIrIndex();
         try self.primaryExpr();
@@ -435,7 +459,7 @@ pub const Parser = struct {
                 },
                 .Lsquare => try self.genericFulfillment(end_index),
                 .Dot => try self.dotPostFix(end_index),
-                // TODO
+                .Lparen => try self.callPostFix(end_index),
                 else => break,
             }
         }

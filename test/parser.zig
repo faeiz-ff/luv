@@ -39,6 +39,48 @@ inline fn debug_expectParseArray(
     try t.expectEqualSlices(luv.IR, &expecteds, nodelist.items);
 }
 
+test "call postfix" {
+    const code =
+        \\def a = z()
+        \\def b = c(d)
+        \\def e = f(g, h, i,)
+        \\def j = k(l, ..m)
+    ;
+
+    const expecteds = .{
+        .{ .Identifier, 1, 0 },
+        .{ .Identifier, 3, 0 },
+        .{ .CallPostFix, 4, 1 },
+        .{ .DefUntypedDecl, 0, 3 },
+
+        .{ .Identifier, 7, 0 },
+        .{ .Identifier, 9, 0 },
+        .{ .Identifier, 11, 0 },
+        .{ .CallPostFix, 10, 2 },
+        .{ .DefUntypedDecl, 6, 4 },
+
+        .{ .Identifier, 14, 0 },
+        .{ .Identifier, 16, 0 },
+        .{ .Identifier, 18, 0 },
+        .{ .Identifier, 20, 0 },
+        .{ .Identifier, 22, 0 },
+        .{ .CallPostFix, 17, 4 },
+        .{ .DefUntypedDecl, 13, 6 },
+
+        .{ .Identifier, 26, 0 },
+        .{ .Identifier, 28, 0 },
+        .{ .Identifier, 30, 0 },
+        .{ .Identifier, 33, 0 },
+        .{ .RestPrefix, 32, 1 },
+        .{ .CallPostFix, 29, 4 },
+        .{ .DefUntypedDecl, 25, 6 },
+
+        .{ .LuvProgram, 35, 23 },
+    };
+
+    try debug_expectParseArray(code, expecteds, .FullProgram);
+}
+
 test "trailing comma" {
     const code =
         \\typ a sym { a, b, }

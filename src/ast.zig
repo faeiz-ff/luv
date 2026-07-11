@@ -45,6 +45,10 @@ pub const IRType = enum {
     /// Has variadic number of children
     /// Starts with the reciever
     GenericFulfillPostFix,
+    /// Stores Lparen token that opens call
+    /// Has variadic number of children
+    /// Starts with the reciever
+    CallPostFix,
     /// Stores dot token
     /// Binary, always have two children: base and accessId
     DotAccess,
