@@ -78,7 +78,7 @@ fn runFile(io: std.Io, path: []const u8) !void {
         //         ir.token.pos.x,
         //         ir.token.pos.y,
         //     });
-        // } 
+        // }
     } else {
         try stdout.print("Bad Syntax, parse failed\n", .{});
     }

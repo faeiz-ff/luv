@@ -2,18 +2,18 @@ const std = @import("std");
 const luv = @import("root.zig");
 
 /// Ansi Colors add reset to color it back to normal
-const Colors = struct {
-    const Reset = "\x1b[0m";
-    const Black = "\x1b[0;30;49m";
-    const BrightBlack = "\x1b[0;90;49m";
-    const Red = "\x1b[0;31;49m";
-    const BrightRed = "\x1b[0;91;49m";
-    const Green = "\x1b[0;32;49m";
-    const Yellow = "\x1b[0;33;49m";
-    const Blue = "\x1b[0;34;49m";
-    const Purple = "\x1b[0;35;49m";
-    const Cyan = "\x1b[0;36;49m";
-    const White = "\x1b[0;37;49m";
+pub const Colors = struct {
+    pub const Reset = "\x1b[0m";
+    pub const Black = "\x1b[0;30;49m";
+    pub const BrightBlack = "\x1b[0;90;49m";
+    pub const Red = "\x1b[0;31;49m";
+    pub const BrightRed = "\x1b[0;91;49m";
+    pub const Green = "\x1b[0;32;49m";
+    pub const Yellow = "\x1b[0;33;49m";
+    pub const Blue = "\x1b[0;34;49m";
+    pub const Purple = "\x1b[0;35;49m";
+    pub const Cyan = "\x1b[0;36;49m";
+    pub const White = "\x1b[0;37;49m";
 };
 
 // TODO: Make this not global
@@ -167,7 +167,7 @@ pub const ErrorReport = struct {
     }
 };
 
-fn getLine(y_pos: usize, code: []const u8) ?[]const u8 {
+pub fn getLine(y_pos: usize, code: []const u8) ?[]const u8 {
     var line_index: usize = 0;
     var start: ?usize = if (y_pos == 0) 0 else null;
     var end: ?usize = null;
@@ -192,64 +192,4 @@ fn getLine(y_pos: usize, code: []const u8) ?[]const u8 {
     } else {
         return code[start.?..end.?];
     }
-}
-
-test "chaining" {
-    const t = std.testing;
-    var buf = std.Io.Writer.Allocating.init(t.allocator);
-    defer buf.deinit();
-    var err: ErrorReport = .init(&buf.writer);
-
-    const code =
-        \\var x = "Hello world!
-    ;
-
-    const pos = luv.Position{
-        .x = 8,
-        .y = 0,
-    };
-
-    try err
-        .err("Unterminated String")
-        .withFileName("main.luv", pos)
-        .withLineMsg(code, pos, "this string is unterminated")
-        .flush();
-
-    const expected =
-        \\{s}[ERR] {s}Unterminated String{s}:
-        \\{s}  at main.luv(1:9){s}
-        \\{s}  |  var x = "Hello world!{s}
-        \\             {s}^ this string is unterminated{s}
-        \\
-    ;
-
-    try t.expectFmt(buf.writer.buffered(), expected, .{
-        Colors.Red,
-        Colors.White,
-        Colors.Reset,
-        Colors.Cyan,
-        Colors.Reset,
-        Colors.White,
-        Colors.Reset,
-        Colors.Cyan,
-        Colors.Reset,
-    });
-}
-
-test "Getline" {
-    const t = std.testing;
-    const gl = getLine;
-    const code =
-        \\
-        \\var x = "Hello world!"
-        \\
-        \\ 
-        // space at the last line
-    ;
-
-    try t.expectEqualStrings("", gl(0, code).?);
-    try t.expectEqualStrings("var x = \"Hello world!\"", gl(1, code).?);
-    try t.expectEqualStrings("", gl(2, code).?);
-    try t.expectEqualStrings(" ", gl(3, code).?);
-    try t.expect(gl(4, code) == null);
 }
