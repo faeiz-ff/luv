@@ -143,12 +143,9 @@ pub const Parser = struct {
         }
     }
 
-    fn funType(self: *Parser) ParseError!void {
-        const end_index = self.currentIrIndex();
-        const fun = self.peekThenAdvance();
+    fn funParamType(self: *Parser) ParseError!void {
         var hasVariadic = false;
-
-        try self.expectAdvance(.Lparen, "Expecting a parentheses for function type parameters");
+        if (self.matchOne(.Rparen)) return;
 
         while (true) : (if (!self.matchOneAdvance(.Comma) or hasVariadic or self.matchOne(.Rparen)) break) {
             if (self.matchOne(.DotDot)) {
@@ -173,6 +170,15 @@ pub const Parser = struct {
             }
             return error.BadSyntax;
         }
+    }
+
+    fn funType(self: *Parser) ParseError!void {
+        const end_index = self.currentIrIndex();
+        const fun = self.peekThenAdvance();
+
+        try self.expectAdvance(.Lparen, "Expecting a parentheses for function type parameters");
+
+        try self.funParamType();
 
         try self.expectAdvance(.Rparen, "Expecting a right parentheses for closing function type parameters");
 
@@ -202,11 +208,15 @@ pub const Parser = struct {
         try self.addIR(.SymType, sym, self.currentIrIndex() - end_index);
     }
 
-    fn fitLiteralType(self: *Parser) ParseError!void {
+    fn fitType(self: *Parser, mayGeneric: bool) ParseError!void {
         const end_index = self.currentIrIndex();
         const fit = self.peekThenAdvance();
 
         try self.expectAdvance(.Lbrace, "Expecting curly brackets for fit type specification");
+
+        if (mayGeneric) {
+            // TODO
+        }
 
         const tokens = &[_]luv.TokenType{ .Identifier, .Def };
         var isFirstAttribute = true;
@@ -227,14 +237,35 @@ pub const Parser = struct {
             const id_end_index = self.currentIrIndex();
             const id = self.peekThenAdvance();
 
-            try self.typeRule();
+            if (self.matchOne(.Lparen)) {
+                const method_end_index = self.currentIrIndex();
+                const tok = self.peekThenAdvance();
+                if (def) |_| {
+                    if (self.errors) |*err| {
+                        try err
+                            .err("Redundant syntax")
+                            .withLineMsg(self.code.?, id.pos, "This fit attribute is a method, 'def' is redundant")
+                            .flush();
+
+                    }
+                    return error.BadSyntax;
+                }
+                try self.funParamType();
+
+                try self.expectAdvance(.Rparen, "Expecting a right parentheses for closing function type parameters");
+
+                try self.typeRule();
+
+                try self.addIR(.FitMethodType, tok, self.currentIrIndex() - method_end_index);
+            } else {
+                try self.typeRule();
+            }
 
             try self.addIR(.TypedIdentifier, id, self.currentIrIndex() - id_end_index);
 
             if (def) |tok| {
                 try self.addIR(.DefDecorator, tok, self.currentIrIndex() - id_end_index);
             }
-
             _ = self.matchOneAdvance(.Comma);
         }
 
@@ -272,7 +303,7 @@ pub const Parser = struct {
             },
             .Fun => return self.funType(),
             .Sym => return self.symType(),
-            .Fit => return self.fitLiteralType(),
+            .Fit => return self.fitType(false),
             // TODO
             else => return error.BadSyntax,
         }

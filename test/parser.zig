@@ -75,6 +75,7 @@ test "fit literal type" {
         \\ typ Safe fit {
         \\     def password int&
         \\     money int
+        \\     storeMoney(int) nil
         \\ }
     ;
 
@@ -86,9 +87,13 @@ test "fit literal type" {
         .{ .DefDecorator, 4, 3 },
         .{ .BuiltinType, 9, 0 },
         .{ .TypedIdentifier, 8, 1 },
-        .{ .FitType, 2, 6 },
-        .{ .TypDecl, 0, 8 },
-        .{ .LuvProgram, 11, 9 },
+        .{ .BuiltinType, 12, 0 },
+        .{ .BuiltinType, 14, 0 },
+        .{ .FitMethodType, 11, 2 },
+        .{ .TypedIdentifier, 10, 3 },
+        .{ .FitType, 2, 10 },
+        .{ .TypDecl, 0, 12 },
+        .{ .LuvProgram, 16, 13 },
     };
 
     try debug_expectParseArray(code, expecteds, .FullProgram);
@@ -118,6 +123,7 @@ test "fun type" {
     const code =
         \\typ Adder fun(int, int) int
         \\typ Summer fun(..int) int
+        \\typ Fiver fun() int
     ;
 
     const expecteds = .{
@@ -134,7 +140,12 @@ test "fun type" {
         .{ .BuiltinType, 16, 0 },
         .{ .FunType, 11, 3 },
         .{ .TypDecl, 9, 5 },
-        .{ .LuvProgram, 17, 12 },
+
+        .{ .Identifier, 18, 0 },
+        .{ .BuiltinType, 22, 0 },
+        .{ .FunType, 19, 1 },
+        .{ .TypDecl, 17, 3 },
+        .{ .LuvProgram, 23, 16 },
     };
 
     try debug_expectParseArray(code, expecteds, .FullProgram);

@@ -83,6 +83,11 @@ pub const IRType = enum {
     /// the contents will be types, last of which is the return type
     /// may contain rest prefix before the return type
     FunType,
+    /// Stores Lparen token
+    /// Has variadic number of children
+    /// the contents will be types, last of which is the return type
+    /// may contain rest prefix before the return type
+    FitMethodType,
     /// Stores dotdot token
     /// Unary, always have one child
     RestPrefix,
@@ -156,8 +161,9 @@ pub const IR = struct {
         var index: usize = 0;
 
         const ir = arr[index];
-        try writer.print("{s}\n", .{
+        try writer.print("{s} {s}\n", .{
             @tagName(ir.irtype),
+            ir.token.lexeme,
         });
 
         index += 1;
