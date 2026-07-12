@@ -23,13 +23,11 @@ const Ansi = true;
 /// Support Ansi Coloring
 pub const ErrorReport = struct {
     const Self = @This();
-    count: usize,
     hasFailedWrite: bool,
     writer: *std.Io.Writer,
 
     pub fn init(writer: *std.Io.Writer) Self {
         return .{
-            .count = 0,
             .hasFailedWrite = false,
             .writer = writer,
         };
@@ -40,74 +38,45 @@ pub const ErrorReport = struct {
         self.hasFailedWrite = false;
     }
 
-    /// Report an Err, increments report counter
-    pub fn err(self: *Self, errheader: []const u8) *Self {
+    pub const ReportType = enum {
+        Err,
+        Warn,
+        Info,
+    };
+
+    pub fn report(self: *Self, comptime ty: ReportType, errheader: []const u8) *Self {
         if (self.hasFailedWrite) return self;
 
-        self.count += 1;
+        const report_color = switch (ty) {
+            .Err => Colors.Red,
+            .Warn => Colors.Yellow,
+            .Info => Colors.Cyan,
+        };
+
         if (Ansi) {
-            self.safePrint("{s}[ERR] {s}{s}{s}:\n", .{
-                Colors.Red,
+            self.safePrint("{s}[{s}] {s}{s}:\n", .{
+                report_color,
+                @tagName(ty),
                 Colors.White,
                 errheader,
-                Colors.Reset,
             });
         } else {
-            self.safePrint("[ERR] {s}:\n", .{errheader});
-        }
-        return self;
-    }
-
-    /// Report a Warn, increments report counter
-    pub fn warn(self: *Self, errheader: []const u8) *Self {
-        if (self.hasFailedWrite) return self;
-
-        self.count += 1;
-        if (Ansi) {
-            self.safePrint("{s}[WARN] {s}{s}{s}:\n", .{
-                Colors.gyellow,
-                Colors.White,
-                errheader,
-                Colors.Reset,
-            });
-        } else {
-            self.safePrint("[WARN] {s}:\n", .{errheader});
-        }
-        return self;
-    }
-
-    /// Report an Info, increments report counter
-    pub fn info(self: *Self, errheader: []const u8) *Self {
-        if (self.hasFailedWrite) return self;
-
-        self.count += 1;
-        if (Ansi) {
-            self.safePrint("{s}[INFO] {s}{s}{s}:\n", .{
-                Colors.Cyan,
-                Colors.White,
-                errheader,
-                Colors.Reset,
-            });
-        } else {
-            self.safePrint("[INFO] {s}:\n", .{errheader});
+            self.safePrint("[{s}] {s}:\n", .{ @tagName(ty), errheader});
         }
         return self;
     }
 
     /// Attach a file name with a position marker to the report
-    pub fn withFileName(self: *Self, filename: []const u8, pos: luv.Position) *Self {
+    pub fn withFileName(self: *Self, filename: []const u8) *Self {
         if (self.hasFailedWrite) return self;
 
         if (Ansi) {
-            self.safePrint("{s}  at {s}({d}:{d}){s}\n", .{
+            self.safePrint("{s}  at {s}\n", .{
                 Colors.Cyan,
                 filename,
-                pos.y + 1,
-                pos.x + 1,
-                Colors.Reset,
             });
         } else {
-            self.safePrint("  at {s}({d}:{d})\n", .{ filename, pos.y + 1, pos.x + 1 });
+            self.safePrint("  at {s}\n", .{ filename });
         }
         return self;
     }
@@ -120,8 +89,8 @@ pub const ErrorReport = struct {
         std.debug.assert(line != null);
 
         if (Ansi) {
-            self.safePrint("{s}  at line {d}{s}\n", .{ Colors.Cyan, pos.y + 1, Colors.Reset });
-            self.safePrint("{s}  |  {s}{s}\n", .{ Colors.White, line.?, Colors.Reset });
+            self.safePrint("{s}  at line {d}\n", .{ Colors.Cyan, pos.y + 1 });
+            self.safePrint("{s}  |  {s}\n", .{ Colors.White, line.? });
         } else {
             self.safePrint("  at line {d}\n", .{ pos.y + 1 });
             self.safePrint("  |  {s}\n", .{line.?});
@@ -133,7 +102,7 @@ pub const ErrorReport = struct {
         }
 
         if (Ansi) {
-            self.safePrint("{s}^ {s}{s}\n", .{ Colors.Cyan, errmsg, Colors.Reset });
+            self.safePrint("{s}^ {s}\n", .{ Colors.Cyan, errmsg });
         } else {
             self.safePrint("^ {s}\n", .{errmsg});
         }
@@ -163,8 +132,10 @@ pub const ErrorReport = struct {
     /// Flush the Writer's buffer, must be attached at the end,
     /// throws WriteFailed if the write has failed along the way
     pub fn flush(self: *Self) error{WriteFailed}!void {
-        errdefer self.count -= 1;
         if (self.hasFailedWrite) return error.WriteFailed;
+        if (Ansi) {
+            self.safePrint("{s}", .{ Colors.Reset });
+        }
         try self.writer.flush();
     }
 };

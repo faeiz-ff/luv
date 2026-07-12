@@ -370,7 +370,7 @@ pub const Lexer = struct {
 
     fn reportErrorUnterminatedString(self: *Lexer) LexError {
         if (self.errors) |*err| {
-            err.err("Unterminated String")
+            err.report(.Err, "Unterminated String")
                 .withLineMsg(self.code, self.pos, "this string is unterminated")
                 .flush() catch return LexError.WriteFailed;
         }
@@ -379,7 +379,7 @@ pub const Lexer = struct {
 
     fn reportErrorUnknownOperator(self: *Lexer) LexError {
         if (self.errors) |*err| {
-            err.err("Unknown Operator")
+            err.report(.Err, "Unknown Operator")
                 .withLineMsg(self.code, self.pos, "this operator is unknown")
                 .flush() catch return LexError.WriteFailed;
         }
@@ -388,11 +388,11 @@ pub const Lexer = struct {
 
     fn reportErrorUnexpected(self: *Lexer, comptime expect: []const u8) LexError {
         if (self.errors) |*err| {
-            err.err("Unexpected Symbol")
+            err.report(.Err, "Unexpected Symbol")
                 .withLineMsg(self.code, self.pos, "expecting " ++ expect)
                 .flush() catch return LexError.WriteFailed;
         }
-        return LexError.BadSyntax;
+       return LexError.BadSyntax;
     }
 
     /// Returns a single token, from the current char index slicing self.code

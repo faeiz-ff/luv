@@ -17,30 +17,26 @@ test "chaining" {
     };
 
     try err
-        .err("Unterminated String")
-        .withFileName("main.luv", pos)
+        .report(.Err ,"Unterminated String")
+        .withFileName("main.luv")
         .withLineMsg(code, pos, "this string is unterminated")
         .flush();
 
     const expected =
-        \\{s}[ERR] {s}Unterminated String{s}:
-        \\{s}  at main.luv(1:9){s}
-        \\{s}  at line 1{s}
-        \\{s}  |  var x = "Hello world!{s}
-        \\             {s}^ this string is unterminated{s}
-        \\
+        \\{s}[Err] {s}Unterminated String:
+        \\{s}  at main.luv
+        \\{s}  at line 1
+        \\{s}  |  var x = "Hello world!
+        \\             {s}^ this string is unterminated
+        \\{s}
     ;
 
     try t.expectFmt(buf.writer.buffered(), expected, .{
         luv.Colors.Red,
         luv.Colors.White,
-        luv.Colors.Reset,
         luv.Colors.Cyan,
-        luv.Colors.Reset,
         luv.Colors.Cyan,
-        luv.Colors.Reset,
         luv.Colors.White,
-        luv.Colors.Reset,
         luv.Colors.Cyan,
         luv.Colors.Reset,
     });

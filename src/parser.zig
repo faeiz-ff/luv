@@ -10,8 +10,7 @@ pub const ParseError = error{
 pub const Parser = struct {
     tokens: []const luv.Token,
     token_index: usize,
-    code: ?[]const u8,
-    errors: ?luv.ErrorReport,
+    errors: ?luv.ParserErrorReport,
 
     /// Do not set or use this variable outside of parser
     result: std.ArrayList(luv.IR),
@@ -23,15 +22,13 @@ pub const Parser = struct {
         .tokens = undefined,
         .token_index = 0,
         .allocator = undefined,
-        .code = null,
         .errors = null,
         .result = undefined,
     };
 
     /// set parser custom error writer target
     pub fn assignErr(self: *Parser, code: []const u8, errWriter: *std.Io.Writer) void {
-        self.code = code;
-        self.errors = .init(errWriter);
+        self.errors = .init(code, errWriter);
     }
 
     fn peek(self: *Parser, num: comptime_int) luv.Token {
@@ -52,7 +49,7 @@ pub const Parser = struct {
         }
     }
 
-    inline fn peekThenAdvance(self: *Parser) luv.Token {
+    fn peekThenAdvance(self: *Parser) luv.Token {
         const tok = self.curr();
         self.advance();
         return tok;
@@ -88,13 +85,10 @@ pub const Parser = struct {
         }
 
         const tok = self.curr();
-        if (self.errors) |*err| {
-            try err
-                .err("Unexpected token")
-                .withFileName("testing", tok.pos)
-                .withLineMsg(self.code.?, tok.pos, errMsg)
-                .flush();
-        }
+        if (self.errors) |*err| err.errorUnexpectedToken(
+            tok.pos,
+            errMsg,
+        );
 
         return ParseError.BadSyntax;
     }
@@ -169,21 +163,10 @@ pub const Parser = struct {
         }
 
         if (variadic != null and !self.match(.Rparen)) {
-            if (self.errors) |*err| {
-                try err
-                    .err("Unexpected Token")
-                    .withLineMsg(
-                        self.code.?,
-                        self.curr().pos,
-                        "Expecting a right parentheses for closing function type after variadic marker",
-                    )
-                    .withLineMsg(
-                        self.code.?,
-                        variadic.?.pos,
-                        "The variadic is defined here",
-                    )
-                    .flush();
-            }
+            if (self.errors) |*err| err.errorFunVariadicUnclosed(
+                self.curr().pos,
+                variadic.?.pos,
+            );
             return error.BadSyntax;
         }
 
@@ -251,14 +234,10 @@ pub const Parser = struct {
                 const method_end_index = self.currentIrIndex();
                 const tok = self.curr();
                 if (def) |d| {
-                    if (self.errors) |*err| {
-                        try err
-                            .err("Redundant syntax")
-                            .withLineMsg(self.code.?, id.pos, "This fit attribute is a method, 'def' is redundant")
-                            .withLineMsg(self.code.?, d.pos, "delete this token")
-                            .flush();
-                    }
-                    return error.BadSyntax;
+                    if (self.errors) |*err| err.warnRedundantToken(
+                        d.pos,
+                        "The attribut that belongs to this def is a method, always a 'def'",
+                    );
                 }
                 try self.funParamType();
 
@@ -355,11 +334,7 @@ pub const Parser = struct {
         const lsquare = self.peekThenAdvance();
 
         if (self.match(.Rsquare)) {
-            if (self.errors) |*err| {
-                try err.err("Expecting non empty generic fulfillment")
-                    .withLineMsg(self.code.?, lsquare.pos, "This generic fulfillment is empty")
-                    .flush();
-            }
+            if (self.errors) |*err| err.errorEmptyGeneric(lsquare.pos);
             return error.BadSyntax;
         }
 
@@ -537,11 +512,11 @@ pub const Parser = struct {
         if (self.matchAny(relationalTokens)) {
             const tok = self.peekThenAdvance();
 
-            if (self.errors) |*err| {
-                try err.err("Illegal chain of relational expression")
-                    .withLineMsg(self.code.?, tok.pos, "use explicit grouping parentheses for this")
-                    .flush();
-            }
+            if (self.errors) |*err| err.errorIllegalChainUseGrouping(
+                "relational expression",
+                tok.pos,
+            );
+
             return error.BadSyntax;
         }
     }
@@ -671,6 +646,11 @@ pub const Parser = struct {
         switch (tok.tt) {
             .Def => try self.topLevelDef(),
             .Typ => try self.typeDecl(),
+            .Semicolon => if (self.errors) |*err| err.warnRedundantToken(
+                tok.pos,
+                "Redundant semicolon on an empty statement",
+            ),
+
             // TODO
             else => return error.BadSyntax,
         }
@@ -684,9 +664,7 @@ pub const Parser = struct {
     ) ParseError!std.ArrayList(luv.IR) {
         self.tokens = tokens;
         self.result = try .initCapacity(allocator, 32);
-        errdefer {
-            self.result.deinit(self.allocator);
-        }
+        errdefer self.result.deinit(self.allocator);
         self.allocator = allocator;
 
         // - 1 to account for eof
@@ -696,6 +674,7 @@ pub const Parser = struct {
 
         try self.addIR(.LuvProgram, self.curr(), self.currentIrIndex());
 
+        if (self.errors) |*err| try err.flush();
         return self.result;
     }
 
@@ -706,12 +685,11 @@ pub const Parser = struct {
     ) ParseError!std.ArrayList(luv.IR) {
         self.tokens = tokens;
         self.result = try .initCapacity(allocator, 32);
-        errdefer {
-            self.result.deinit(self.allocator);
-        }
+        errdefer self.result.deinit(self.allocator);
         self.allocator = allocator;
 
         try self.expression();
+        if (self.errors) |*err| try err.flush();
 
         return self.result;
     }
