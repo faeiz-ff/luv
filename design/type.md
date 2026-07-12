@@ -130,7 +130,7 @@ typ Addable fit {
     add(Own, Own) Own
 }
 
-typ Pair nom[T any] {
+typ Pair[T any] nom {
     first  T 
     second T
 }

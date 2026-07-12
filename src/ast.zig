@@ -109,6 +109,10 @@ pub const IRType = enum {
     /// Has variadic number of children
     /// the contents will be bare TypedIdentifier or a DefDecorated one
     FitType,
+    /// Stores Lsquare token
+    /// Has variadic number of children
+    /// the contents will be TypedIdentifiers then at last is the wrapped AST
+    GenericDeclaration,
 };
 
 /// Luv Intermediate Representation to store in an array.

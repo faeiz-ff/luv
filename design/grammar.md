@@ -13,15 +13,15 @@ topLevelStmt
 
 useStmt: use' 'test'? ID '=' STRING_LITERAL;
 
-tagType: 'tag' genericDeclaration? '{' (ID typeRule ','?)+ '}';
+tagType: 'tag' '{' (ID typeRule ','?)+ '}';
 
-nomType: 'nom' genericDeclaration? '{' ('def'? '^'? ID typeRule ','?)* '}';
+nomType: 'nom' '{' ('def'? '^'? ID typeRule ','?)* '}';
 
 symType: 'sym' '{' (ID ('=' expr)? ','?)+ '}';
 
-fitType: 'fit' genericDeclaration? '{' ('def'? (ID (typeRule | 'Own' '?') | methodDecl) ','?)+ '}';
+fitType: 'fit' '{' ('def'? (ID (typeRule | 'Own' '?') | methodDecl) ','?)* '}';
 
-typStmt: 'typ' '^'? nameSpacedIdentifier (tagType | nomType | fitType | typeRule);
+typStmt: 'typ' '^'? nameSpacedIdentifier genericDeclaration? (tagType | nomType | fitType | typeRule);
 
 methodDecl: ID '(' ((typeRule | 'Own') (',' (typeRule | 'Own'))* (',' '..' (typeRule | 'Own'))? | ('..' (typeRule | 'Own')))? ','? ')' (typeRule | 'Own');
 
@@ -39,7 +39,7 @@ typeBase
     | '[' typeRule ']'
     | '[' typeRule (',' typeRule)+ ']'
     | '[' ']'
-    | 'fit' '{' ('def'? (ID typeRule | methodDecl) ','?)* '}'
+    | fitType
     | symType
     | 'nil'
     | 'any'

@@ -90,7 +90,7 @@ pub const Parser = struct {
             errMsg,
         );
 
-        return ParseError.BadSyntax;
+        return error.BadSyntax;
     }
 
     fn expectAdvance(self: *Parser, tt: luv.TokenType, errMsg: []const u8) ParseError!void {
@@ -201,16 +201,12 @@ pub const Parser = struct {
         try self.addIR(.SymType, sym, self.currentIrIndex() - end_index);
     }
 
-    fn fitType(self: *Parser, mayGeneric: bool) ParseError!void {
-        const end_index = self.currentIrIndex();
+    fn fitType(self: *Parser) ParseError!void {
         const fit = self.peekThenAdvance();
 
         try self.expectAdvance(.Lbrace, "Expecting curly brackets for fit type specification");
 
-        if (mayGeneric) {
-            // TODO
-        }
-
+        const end_index = self.currentIrIndex();
         const tokens = &[_]luv.TokenType{ .Identifier, .Def };
         var isFirstAttribute = true;
 
@@ -233,14 +229,15 @@ pub const Parser = struct {
             if (self.match(.Lparen)) {
                 const method_end_index = self.currentIrIndex();
                 const tok = self.curr();
+
                 if (def) |d| {
                     if (self.errors) |*err| err.warnRedundantToken(
                         d.pos,
                         "The attribut that belongs to this def is a method, always a 'def'",
                     );
                 }
-                try self.funParamType();
 
+                try self.funParamType();
                 try self.typeRule();
 
                 try self.addIR(.FitMethodType, tok, self.currentIrIndex() - method_end_index);
@@ -264,25 +261,7 @@ pub const Parser = struct {
     fn typeBase(self: *Parser) ParseError!void {
         const tok = self.curr();
         switch (tok.tt) {
-            .Identifier => {
-                const end_index = self.currentIrIndex();
-
-                try self.addIR(.Identifier, tok, 0);
-
-                self.advance();
-
-                while (self.match(.Dot)) {
-                    const op = self.peekThenAdvance();
-
-                    try self.expect(.Identifier, "Expecting an Identifier after a dot '.' in type expression");
-                    const rhs = self.peekThenAdvance();
-
-                    try self.addIR(.Identifier, rhs, 0);
-
-                    // this will always anchor to the first identifier
-                    try self.addIR(.DotAccess, op, self.currentIrIndex() - end_index);
-                }
-            },
+            .Identifier => try self.namespacedIdentifier(),
             .Lsquare => return self.tupleOrGroupingType(),
             .Int, .Str, .Bol, .Flo, .Nil, .Any => {
                 self.advance();
@@ -290,7 +269,7 @@ pub const Parser = struct {
             },
             .Fun => return self.funType(),
             .Sym => return self.symType(),
-            .Fit => return self.fitType(false),
+            .Fit => return self.fitType(),
             // TODO
             else => return error.BadSyntax,
         }
@@ -573,31 +552,32 @@ pub const Parser = struct {
         return self.assignmentExpr();
     }
 
+    fn namespacedIdentifier(self: *Parser) ParseError!void {
+        const end_index = self.currentIrIndex();
+        try self.addIR(.Identifier, self.peekThenAdvance(), 0);
+
+        while (self.match(.Dot)) {
+            const dot = self.peekThenAdvance();
+
+            try self.expect(.Identifier, "Expecting identifier after dot '.' for namespaced identifier");
+            const access = self.peekThenAdvance();
+
+            try self.addIR(.Identifier, access, 0);
+
+            try self.addIR(.DotAccess, dot, self.currentIrIndex() - end_index);
+        }
+    }
+
     fn topLevelDef(self: *Parser) ParseError!void {
         const end_index = self.currentIrIndex();
         const def = self.peekThenAdvance();
 
         // TODO def test and exported
         try self.expect(.Identifier, "Expecting identifier after 'def' for top level def statement");
-        const id = self.peekThenAdvance();
+        try self.namespacedIdentifier();
 
-        try self.addIR(.Identifier, id, 0);
-
-        switch (self.curr().tt) {
-            .Dot => while (self.match(.Dot)) {
-                const dot = self.peekThenAdvance();
-
-                try self.expect(.Identifier, "Expecting identifier after dot '.' for namespaced identifier");
-                const access = self.peekThenAdvance();
-
-                try self.addIR(.Identifier, access, 0);
-
-                try self.addIR(.DotAccess, dot, self.currentIrIndex() - end_index);
-            },
-            // TODO destructure
-            // TODO optionals and view infer
-            else => {},
-        }
+        // TODO destructure
+        // TODO optionals and view infer
 
         var isTyped = false;
         if (!self.match(.Equal)) {
@@ -612,31 +592,39 @@ pub const Parser = struct {
         try self.addIR(if (isTyped) .DefDecl else .DefUntypedDecl, def, self.currentIrIndex() - end_index);
     }
 
+    fn genericDeclaration(self: *Parser, innerFn: fn (self: *Parser) ParseError!void) ParseError!void {
+        const generic_end_index = self.currentIrIndex();
+        const generic_token = self.peekThenAdvance();
+        try self.expect(.Identifier, "Expecting atleast a single type bound in a generic declaration");
+
+        while (true) : (if (!self.consumeCommaAndNotMatch(.Rsquare)) break) {
+            const tyid_end_index = self.currentIrIndex();
+            const tyid = self.peekThenAdvance();
+            try self.typeRule();
+
+            try self.addIR(.TypedIdentifier, tyid, self.currentIrIndex() - tyid_end_index);
+        }
+
+        try self.expectAdvance(.Rsquare, "Expecting a right curly bracket for closing generic declaration");
+
+        try innerFn(self);
+
+        try self.addIR(.GenericDeclaration, generic_token, self.currentIrIndex() - generic_end_index);
+    }
+
     fn typeDecl(self: *Parser) ParseError!void {
         const end_index = self.result.items.len;
         const typ_tok = self.peekThenAdvance();
 
         // TODO export modifier
         try self.expect(.Identifier, "Expecting identifier after 'typ' for type declaration");
-        const id = self.peekThenAdvance();
+        try self.namespacedIdentifier();
 
-        try self.addIR(.Identifier, id, 0);
-
-        switch (self.curr().tt) {
-            .Dot => while (self.match(.Dot)) {
-                const dot = self.peekThenAdvance();
-
-                try self.expect(.Identifier, "Expecting identifier after dot '.' for namespaced identifier");
-                const access = self.peekThenAdvance();
-
-                try self.addIR(.Identifier, access, 0);
-
-                try self.addIR(.DotAccess, dot, self.result.items.len - end_index);
-            },
-            else => {},
+        if (self.match(.Lsquare)) {
+            try self.genericDeclaration(typeRule);
+        } else {
+            try self.typeRule();
         }
-
-        try self.typeRule();
 
         try self.addIR(.TypDecl, typ_tok, self.result.items.len - end_index);
     }

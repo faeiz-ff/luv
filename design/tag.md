@@ -42,7 +42,7 @@ Options are well, optional values. It represent either something or nothing.
 Option is generic, its definition is roughly like this.
 
 ```luv
-typ Option tag[T any] {
+typ Option[T any] tag {
     Some T
     None nil
 } # wow very original
@@ -55,7 +55,7 @@ But we don't need to actually type `Option[T]`, theres a '?' shorthand at the ty
 Result represent a type that may fail. It represent an Ok tag or Err tag. It is generic for both tag.
 
 ```luv
-typ Result tag[T any, U any] {
+typ Result[T any, U any] tag {
     Ok  T 
     Err U
 }

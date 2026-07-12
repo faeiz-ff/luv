@@ -6,7 +6,7 @@ Generics by itself is not a complete type and cant be used as a type, unless its
 Generic fulfillment are placed in square brackets.
 
 ```luv
-typ Box nom[T any] {
+typ Box[T any] nom {
     thing T
 }
 

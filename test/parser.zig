@@ -39,6 +39,37 @@ inline fn debug_expectParseArray(
     try t.expectEqualSlices(luv.IR, &expecteds, nodelist.items);
 }
 
+test "type decl generic decl" {
+    const code =
+        \\ typ ID[T any] T
+        \\ typ Result[T Obj, U Obj] T!U
+    ;
+
+    const expecteds = .{
+        .{ .Identifier, 1, 0 },
+        .{ .BuiltinType, 4, 0 },
+        .{ .TypedIdentifier, 3, 1 },
+        .{ .Identifier, 6, 0 },
+        .{ .GenericDeclaration, 2, 3 },
+        .{ .TypDecl, 0, 5 },
+
+        .{ .Identifier, 8, 0 },
+        .{ .Identifier, 11, 0 },
+        .{ .TypedIdentifier, 10, 1 },
+        .{ .Identifier, 14, 0 },
+        .{ .TypedIdentifier, 13, 1 },
+        .{ .Identifier, 16, 0 },
+        .{ .Identifier, 18, 0 },
+        .{ .ResultType, 17, 2 },
+        .{ .GenericDeclaration, 9, 7 },
+        .{ .TypDecl, 7, 9 },
+
+        .{ .LuvProgram, 19, 16 },
+    };
+
+    try debug_expectParseArray(code, expecteds, .FullProgram);
+}
+
 test "call postfix" {
     const code =
         \\def a = z()

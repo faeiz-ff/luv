@@ -7,7 +7,7 @@
 
 
 ```luv
-typ Box nom[T any] {
+typ Box[T any] nom {
     item T
 }
 

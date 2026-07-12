@@ -6,11 +6,11 @@ Iterators are a language feature that is used for a range based `for` loop.
 It's definition is roughly like this:
 
 ```luv
-typ Iter fit[T any] {
+typ Iter[T any] fit {
     next(Own) T?
 }
 
-typ Iterable fit[T any] {
+typ Iterable[T any] fit {
     toIter(Own) Iter[T]
 }
 ```
