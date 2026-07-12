@@ -10,5 +10,3 @@ This is only a hobby project of mine to learn low level stuff.
 Things that I want `luv` to achieve:
 - a full VM
 - a [Raylib](https://raylib.com) FFI
-- a JavaScript transpilation running react
-- Maybe [llvm](https://llvm.org) lol
