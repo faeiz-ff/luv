@@ -120,8 +120,10 @@ pub const ErrorReport = struct {
         std.debug.assert(line != null);
 
         if (Ansi) {
+            self.safePrint("{s}  at line {d}{s}\n", .{ Colors.Cyan, pos.y + 1, Colors.Reset });
             self.safePrint("{s}  |  {s}{s}\n", .{ Colors.White, line.?, Colors.Reset });
         } else {
+            self.safePrint("  at line {d}\n", .{ pos.y + 1 });
             self.safePrint("  |  {s}\n", .{line.?});
         }
 

@@ -58,7 +58,7 @@ pub const Parser = struct {
         return tok;
     }
 
-    fn match(self: *Parser, matches: []const luv.TokenType) bool {
+    fn matchAny(self: *Parser, matches: []const luv.TokenType) bool {
         for (matches) |tt| {
             if (self.curr().tt == tt) {
                 return true;
@@ -67,14 +67,14 @@ pub const Parser = struct {
         return false;
     }
 
-    fn matchOne(self: *Parser, tt: luv.TokenType) bool {
+    fn match(self: *Parser, tt: luv.TokenType) bool {
         if (self.curr().tt == tt) {
             return true;
         }
         return false;
     }
 
-    fn matchOneAdvance(self: *Parser, tt: luv.TokenType) bool {
+    fn matchThenAdvance(self: *Parser, tt: luv.TokenType) bool {
         if (self.curr().tt == tt) {
             self.advance();
             return true;
@@ -83,7 +83,7 @@ pub const Parser = struct {
     }
 
     fn expect(self: *Parser, tt: luv.TokenType, errMsg: []const u8) ParseError!void {
-        if (self.matchOne(tt)) {
+        if (self.match(tt)) {
             return;
         }
 
@@ -100,7 +100,7 @@ pub const Parser = struct {
     }
 
     fn expectAdvance(self: *Parser, tt: luv.TokenType, errMsg: []const u8) ParseError!void {
-        if (self.matchOneAdvance(tt)) {
+        if (self.matchThenAdvance(tt)) {
             return;
         }
         try self.expect(tt, errMsg);
@@ -119,20 +119,26 @@ pub const Parser = struct {
         return self.result.items.len;
     }
 
+    fn consumeCommaAndNotMatch(self: *Parser, bracket_type: luv.TokenType) bool {
+        if (self.matchThenAdvance(.Comma) and !self.match(bracket_type)) {
+            return true;
+        }
+        return false;
+    }
+
     fn tupleOrGroupingType(self: *Parser) ParseError!void {
         const end_index = self.currentIrIndex();
         const lsquare = self.peekThenAdvance();
         var isTuple = false;
 
-        if (self.matchOneAdvance(.Rsquare)) {
+        if (self.matchThenAdvance(.Rsquare)) {
             try self.addIR(.TupleType, lsquare, 0);
             return;
         }
 
         try self.typeRule();
 
-        // the first condition if correct will advance then checks the second condition
-        while (self.matchOneAdvance(.Comma) and !self.matchOne(.Rsquare)) {
+        while (self.consumeCommaAndNotMatch(.Rsquare)) {
             try self.typeRule();
             isTuple = true;
         }
@@ -144,43 +150,51 @@ pub const Parser = struct {
     }
 
     fn funParamType(self: *Parser) ParseError!void {
-        var hasVariadic = false;
-        if (self.matchOne(.Rparen)) return;
+        try self.expectAdvance(.Lparen, "Expecting a parentheses for function type parameters");
+        if (self.matchThenAdvance(.Rparen)) return;
 
-        while (true) : (if (!self.matchOneAdvance(.Comma) or hasVariadic or self.matchOne(.Rparen)) break) {
-            if (self.matchOne(.DotDot)) {
-                const dotdot = self.peekThenAdvance();
+        var variadic: ?luv.Token = null;
+
+        while (true) : (if (!self.consumeCommaAndNotMatch(.Rparen) or variadic != null) break) {
+            if (self.match(.DotDot)) {
+                variadic = self.peekThenAdvance();
                 const variadic_end_index = self.currentIrIndex();
-                hasVariadic = true;
 
                 try self.typeRule();
 
-                try self.addIR(.RestPrefix, dotdot, self.currentIrIndex() - variadic_end_index);
+                try self.addIR(.RestPrefix, variadic.?, self.currentIrIndex() - variadic_end_index);
             } else {
                 try self.typeRule();
             }
         }
 
-        if (hasVariadic and self.matchOne(.DotDot)) {
+        if (variadic != null and !self.match(.Rparen)) {
             if (self.errors) |*err| {
                 try err
-                    .err("Invalid syntax")
-                    .withLineMsg(self.code.?, self.curr().pos, "Cannot have multiple variadic parameters")
+                    .err("Unexpected Token")
+                    .withLineMsg(
+                        self.code.?,
+                        self.curr().pos,
+                        "Expecting a right parentheses for closing function type after variadic marker",
+                    )
+                    .withLineMsg(
+                        self.code.?,
+                        variadic.?.pos,
+                        "The variadic is defined here",
+                    )
                     .flush();
             }
             return error.BadSyntax;
         }
+
+        try self.expectAdvance(.Rparen, "Expecting a right parentheses for closing function type parameters");
     }
 
     fn funType(self: *Parser) ParseError!void {
         const end_index = self.currentIrIndex();
         const fun = self.peekThenAdvance();
 
-        try self.expectAdvance(.Lparen, "Expecting a parentheses for function type parameters");
-
         try self.funParamType();
-
-        try self.expectAdvance(.Rparen, "Expecting a right parentheses for closing function type parameters");
 
         try self.typeRule();
 
@@ -193,14 +207,10 @@ pub const Parser = struct {
 
         try self.expectAdvance(.Lbrace, "Expecting curly brackets for sym type");
 
-        var isFirstAttribute = true;
-        while (true) : (if (!self.matchOne(.Identifier)) break) {
-            if (isFirstAttribute) try self.expect(.Identifier, "Expecting atleast a single identifier for sym type");
-            isFirstAttribute = false;
-
+        try self.expect(.Identifier, "Expecting atleast a single identifier for sym type");
+        while (true) : (if (!self.match(.Identifier)) break) {
             try self.addIR(.Identifier, self.peekThenAdvance(), 0);
-
-            _ = self.matchOneAdvance(.Comma);
+            _ = self.matchThenAdvance(.Comma);
         }
 
         try self.expectAdvance(.Rbrace, "Expecting a right curly bracket for closing sym type");
@@ -221,9 +231,9 @@ pub const Parser = struct {
         const tokens = &[_]luv.TokenType{ .Identifier, .Def };
         var isFirstAttribute = true;
 
-        while (true) : (if (!self.match(tokens)) break) {
+        while (true) : (if (!self.matchAny(tokens)) break) {
             var def: ?luv.Token = null;
-            if (self.matchOne(.Def)) {
+            if (self.match(.Def)) {
                 def = self.peekThenAdvance();
             }
 
@@ -237,21 +247,20 @@ pub const Parser = struct {
             const id_end_index = self.currentIrIndex();
             const id = self.peekThenAdvance();
 
-            if (self.matchOne(.Lparen)) {
+            if (self.match(.Lparen)) {
                 const method_end_index = self.currentIrIndex();
-                const tok = self.peekThenAdvance();
-                if (def) |_| {
+                const tok = self.curr();
+                if (def) |d| {
                     if (self.errors) |*err| {
                         try err
                             .err("Redundant syntax")
                             .withLineMsg(self.code.?, id.pos, "This fit attribute is a method, 'def' is redundant")
+                            .withLineMsg(self.code.?, d.pos, "delete this token")
                             .flush();
                     }
                     return error.BadSyntax;
                 }
                 try self.funParamType();
-
-                try self.expectAdvance(.Rparen, "Expecting a right parentheses for closing function type parameters");
 
                 try self.typeRule();
 
@@ -265,7 +274,7 @@ pub const Parser = struct {
             if (def) |tok| {
                 try self.addIR(.DefDecorator, tok, self.currentIrIndex() - id_end_index);
             }
-            _ = self.matchOneAdvance(.Comma);
+            _ = self.matchThenAdvance(.Comma);
         }
 
         try self.expectAdvance(.Rbrace, "Expecting a right curly bracket for closing fit type");
@@ -283,7 +292,7 @@ pub const Parser = struct {
 
                 self.advance();
 
-                while (self.matchOne(.Dot)) {
+                while (self.match(.Dot)) {
                     const op = self.peekThenAdvance();
 
                     try self.expect(.Identifier, "Expecting an Identifier after a dot '.' in type expression");
@@ -333,7 +342,7 @@ pub const Parser = struct {
         const end_index = self.currentIrIndex();
         try self.typePostFix();
 
-        if (self.matchOne(.Bang)) {
+        if (self.match(.Bang)) {
             const tok = self.peekThenAdvance();
 
             try self.typePostFix();
@@ -345,7 +354,7 @@ pub const Parser = struct {
     fn genericFulfillment(self: *Parser, end_index: usize) ParseError!void {
         const lsquare = self.peekThenAdvance();
 
-        if (self.matchOne(.Rsquare)) {
+        if (self.match(.Rsquare)) {
             if (self.errors) |*err| {
                 try err.err("Expecting non empty generic fulfillment")
                     .withLineMsg(self.code.?, lsquare.pos, "This generic fulfillment is empty")
@@ -356,7 +365,7 @@ pub const Parser = struct {
 
         try self.typeRule();
 
-        while (self.matchOneAdvance(.Comma) and !self.matchOne(.Rsquare)) {
+        while (self.consumeCommaAndNotMatch(.Rsquare)) {
             try self.typeRule();
         }
 
@@ -419,13 +428,13 @@ pub const Parser = struct {
 
     fn callPostFix(self: *Parser, end_index: usize) ParseError!void {
         const tok = self.peekThenAdvance();
-        if (self.matchOneAdvance(.Rparen)) {
+        if (self.matchThenAdvance(.Rparen)) {
             try self.addIR(.CallPostFix, tok, end_index);
             return;
         }
 
-        while (true) : (if (!self.matchOneAdvance(.Comma) or self.matchOne(.Rparen)) break) {
-            if (self.matchOne(.DotDot)) {
+        while (true) : (if (!self.consumeCommaAndNotMatch(.Rparen)) break) {
+            if (self.match(.DotDot)) {
                 const dotdot = self.peekThenAdvance();
                 const spread_end_index = self.currentIrIndex();
 
@@ -467,7 +476,7 @@ pub const Parser = struct {
 
     fn unaryExpr(self: *Parser) ParseError!void {
         const end_index = self.currentIrIndex();
-        if (self.match(&[_]luv.TokenType{ .Not, .Minus })) {
+        if (self.matchAny(&[_]luv.TokenType{ .Not, .Minus })) {
             const tok = self.peekThenAdvance();
 
             try self.unaryExpr();
@@ -482,7 +491,7 @@ pub const Parser = struct {
         const end_index = self.currentIrIndex();
         try self.unaryExpr();
 
-        while (self.match(&[_]luv.TokenType{ .Asterisk, .Solidus, .Modulus })) {
+        while (self.matchAny(&[_]luv.TokenType{ .Asterisk, .Solidus, .Modulus })) {
             const tok = self.peekThenAdvance();
 
             try self.unaryExpr();
@@ -495,7 +504,7 @@ pub const Parser = struct {
         const end_index = self.currentIrIndex();
         try self.factorExpr();
 
-        while (self.match(&[_]luv.TokenType{ .Plus, .Minus })) {
+        while (self.matchAny(&[_]luv.TokenType{ .Plus, .Minus })) {
             const tok = self.peekThenAdvance();
 
             try self.factorExpr();
@@ -517,7 +526,7 @@ pub const Parser = struct {
         const end_index = self.currentIrIndex();
         try self.termExpr();
 
-        if (self.match(relationalTokens)) {
+        if (self.matchAny(relationalTokens)) {
             const tok = self.peekThenAdvance();
 
             try self.termExpr();
@@ -525,7 +534,7 @@ pub const Parser = struct {
             try self.addIR(.Relational, tok, self.currentIrIndex() - end_index);
         }
 
-        if (self.match(relationalTokens)) {
+        if (self.matchAny(relationalTokens)) {
             const tok = self.peekThenAdvance();
 
             if (self.errors) |*err| {
@@ -541,7 +550,7 @@ pub const Parser = struct {
         const end_index = self.currentIrIndex();
         try self.relationalExpr();
 
-        while (self.matchOne(.And)) {
+        while (self.match(.And)) {
             const tok = self.peekThenAdvance();
 
             try self.relationalExpr();
@@ -554,7 +563,7 @@ pub const Parser = struct {
         const end_index = self.currentIrIndex();
         try self.andExpr();
 
-        while (self.matchOne(.Or)) {
+        while (self.match(.Or)) {
             const tok = self.peekThenAdvance();
 
             try self.andExpr();
@@ -576,7 +585,7 @@ pub const Parser = struct {
         const end_index = self.currentIrIndex();
         try self.orExpr();
 
-        if (self.match(assignmentTokens)) {
+        if (self.matchAny(assignmentTokens)) {
             const tok = self.peekThenAdvance();
 
             try self.expression();
@@ -600,7 +609,7 @@ pub const Parser = struct {
         try self.addIR(.Identifier, id, 0);
 
         switch (self.curr().tt) {
-            .Dot => while (self.matchOne(.Dot)) {
+            .Dot => while (self.match(.Dot)) {
                 const dot = self.peekThenAdvance();
 
                 try self.expect(.Identifier, "Expecting identifier after dot '.' for namespaced identifier");
@@ -616,7 +625,7 @@ pub const Parser = struct {
         }
 
         var isTyped = false;
-        if (!self.matchOne(.Equal)) {
+        if (!self.match(.Equal)) {
             try self.typeRule();
             isTyped = true;
         }
@@ -639,7 +648,7 @@ pub const Parser = struct {
         try self.addIR(.Identifier, id, 0);
 
         switch (self.curr().tt) {
-            .Dot => while (self.matchOne(.Dot)) {
+            .Dot => while (self.match(.Dot)) {
                 const dot = self.peekThenAdvance();
 
                 try self.expect(.Identifier, "Expecting identifier after dot '.' for namespaced identifier");
@@ -665,7 +674,7 @@ pub const Parser = struct {
             // TODO
             else => return error.BadSyntax,
         }
-        _ = self.matchOneAdvance(.Semicolon);
+        _ = self.matchThenAdvance(.Semicolon);
     }
 
     pub fn parse(

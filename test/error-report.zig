@@ -25,6 +25,7 @@ test "chaining" {
     const expected =
         \\{s}[ERR] {s}Unterminated String{s}:
         \\{s}  at main.luv(1:9){s}
+        \\{s}  at line 1{s}
         \\{s}  |  var x = "Hello world!{s}
         \\             {s}^ this string is unterminated{s}
         \\
@@ -33,6 +34,8 @@ test "chaining" {
     try t.expectFmt(buf.writer.buffered(), expected, .{
         luv.Colors.Red,
         luv.Colors.White,
+        luv.Colors.Reset,
+        luv.Colors.Cyan,
         luv.Colors.Reset,
         luv.Colors.Cyan,
         luv.Colors.Reset,
