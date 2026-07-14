@@ -60,14 +60,10 @@ pub const ParserErrorReport = struct {
             .flush();
     }
 
-    pub fn errorExpectedSomeRule(self: *Self, tok: ?luv.Token, comptime rule: []const u8) !void {
-        try self.reporter
-            .report(.Err, rule ++ " Not Found")
-            .withLineMsg(
-                self.code,
-                if (tok) |t| t.pos else .{ .x = 0, .y = 0 },
-                "Expecting " ++ rule ++ " rule after this.",
-            )
-            .flush();
+    pub fn errorExpectedSomeRule(self: *Self, pos: luv.Position, comptime rule: []const u8) !void {
+            try self.reporter
+                .report(.Err, rule ++ " Not Found")
+                .withLineMsg(self.code, pos, "Expecting " ++ rule ++ " rule here")
+                .flush();
     }
 };
