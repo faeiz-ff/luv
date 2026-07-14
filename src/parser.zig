@@ -43,6 +43,12 @@ pub const Parser = struct {
         return self.tokens.ptr[self.token_index];
     }
 
+    fn prev(self: *Parser) ?luv.Token {
+        if (self.token_index == 0) return null;
+        return self.tokens.ptr[self.token_index - 1];
+    }
+
+
     fn advance(self: *Parser) void {
         if (self.token_index < self.tokens.len - 1) {
             self.token_index += 1;
@@ -271,7 +277,10 @@ pub const Parser = struct {
             .Sym => return self.symType(),
             .Fit => return self.fitType(),
             // TODO
-            else => return error.BadSyntax,
+            else => {
+                if (self.errors) |*err| try err.errorExpectedSomeRule(self.prev(), "Type");
+                return error.BadSyntax;
+            },
         }
     }
 
@@ -360,7 +369,10 @@ pub const Parser = struct {
             },
 
             // TODO
-            else => return error.BadSyntax,
+            else => {
+                if (self.errors) |*err| try err.errorExpectedSomeRule(self.prev(), "Expression");
+                return error.BadSyntax;
+            },
         }
     }
 
@@ -376,7 +388,10 @@ pub const Parser = struct {
                 try self.addIR(.DotAccess, dot, self.currentIrIndex() - end_index);
             },
             // TODO
-            else => return error.BadSyntax,
+            else => {
+                if (self.errors) |*err| try err.errorExpectedSomeRule(self.prev(), "Dot PostFix");
+                return error.BadSyntax;
+            },
         }
     }
 
@@ -640,7 +655,10 @@ pub const Parser = struct {
             ),
 
             // TODO
-            else => return error.BadSyntax,
+            else => {
+                if (self.errors) |*err| try err.errorExpectedSomeRule(self.prev(), "Top Level Statement");
+                return error.BadSyntax;
+            },
         }
         _ = self.matchThenAdvance(.Semicolon);
     }

@@ -15,7 +15,7 @@ pub const ParserErrorReport = struct {
 
     pub fn errorUnexpectedToken(self: *Self, pos: luv.Position, errMsg: []const u8) !void {
         try self.reporter
-            .report(.Err, "Unexpected token")
+            .report(.Err, "Unexpected Token")
             .withLineMsg(self.code, pos, errMsg)
             .flush();
     }
@@ -45,7 +45,7 @@ pub const ParserErrorReport = struct {
 
     pub fn errorIllegalChainUseGrouping(self: *Self, comptime something: []const u8, pos: luv.Position) !void {
         try self.reporter
-            .report(.Err, "Illegal chain of " ++ something)
+            .report(.Err, "Illegal Chain of " ++ something)
             .withLineMsg(self.code, pos, "use explicit grouping parentheses for this")
             .flush();
     }
@@ -57,6 +57,17 @@ pub const ParserErrorReport = struct {
         try self.reporter
             .report(.Err, "Invalid Empty Generic")
             .withLineMsg(self.code, pos, "This generic is empty, delete these token")
+            .flush();
+    }
+
+    pub fn errorExpectedSomeRule(self: *Self, tok: ?luv.Token, comptime rule: []const u8) !void {
+        try self.reporter
+            .report(.Err, rule ++ " Not Found")
+            .withLineMsg(
+                self.code,
+                if (tok) |t| t.pos else .{ .x = 0, .y = 0 },
+                "Expecting " ++ rule ++ " rule after this.",
+            )
             .flush();
     }
 };
