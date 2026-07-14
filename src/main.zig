@@ -64,12 +64,13 @@ fn runFile(io: std.Io, path: []const u8) !void {
     var parser: luv.Parser = .empty;
     parser.assignErr(code.items, stderr);
 
-    var irs: ?std.ArrayList(luv.IR) = parser.parse(allocator, tokens.items) catch null;
+    var irs: ?std.ArrayList(luv.IR) = parser.parseStmt(allocator, tokens.items) catch null;
     defer if (irs) |*ir| ir.deinit(allocator);
 
     if (irs) |irss| {
         luv.IR.reverseSlice(irss.items);
         try luv.IR.printTree(stdout, irss.items);
+        try stdout.print("\n", .{});
         for (irss.items) |ir| {
             try stdout.print("{any}\n", .{ ir });
             // try stdout.print("{s: <15} v{d: <3} : {s} at {d}, {d}\n", .{

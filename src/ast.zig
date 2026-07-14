@@ -121,6 +121,21 @@ pub const IRType = enum {
     /// Has variadic number of children
     /// the contents will be TypedIdentifiers then at last is the wrapped AST
     GenericDeclaration,
+    /// Stores continue token
+    /// Has no child
+    ContinueStmt,
+    /// Stores Lbrace token
+    /// Has variadic number of children: statements
+    BlockStmt,
+    /// Stores Return token
+    /// Has zero or one child: expression
+    ReturnStmt,
+    /// Stores Break token
+    /// Has zero or one child: expression
+    BreakStmt,
+    /// Stores Yield token
+    /// Has zero or one child: expression
+    YieldStmt,
 };
 
 /// Luv Intermediate Representation to store in an array.

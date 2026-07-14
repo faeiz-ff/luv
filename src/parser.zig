@@ -392,7 +392,7 @@ pub const Parser = struct {
     fn callPostFix(self: *Parser, end_index: usize) ParseError!void {
         const tok = self.peekThenAdvance();
         if (self.matchThenAdvance(.Rparen)) {
-            try self.addIR(.CallPostFix, tok, end_index);
+            try self.addIR(.CallPostFix, tok, self.currentIrIndex() - end_index);
             return;
         }
 
@@ -634,6 +634,7 @@ pub const Parser = struct {
         const end_index = self.currentIrIndex();
         const tokens = &[_]luv.TokenType{ .Identifier, .Def };
 
+        // TODO export modifier
         while (true) : (if (!self.matchAny(tokens)) break) {
             var def: ?luv.Token = null;
             if (self.match(.Def)) {
@@ -706,6 +707,106 @@ pub const Parser = struct {
         try self.addIR(.TypDecl, typ_tok, self.result.items.len - end_index);
     }
 
+    fn varStmt(self: *Parser) ParseError!void {
+        const end_index = self.currentIrIndex();
+        const tok = self.peekThenAdvance();
+
+        try self.expect(.Identifier, "Expecting identifier after 'var'");
+        try self.addIR(.Identifier, self.peekThenAdvance(), 0);
+
+        // TODO destructure
+        // TODO optionals and view infer
+
+        var isTyped = false;
+        if (!self.match(.Equal)) {
+            try self.typeRule();
+            isTyped = true;
+        }
+
+        try self.expectAdvance(.Equal, "Expecting '=' after an identifier in var declaration");
+
+        try self.expression();
+
+        try self.addIR(if (isTyped) .VarDecl else .VarUntypedDecl, tok, self.currentIrIndex() - end_index);
+    }
+
+    fn defStmt(self: *Parser) ParseError!void {
+        const end_index = self.currentIrIndex();
+        const tok = self.peekThenAdvance();
+
+        try self.expect(.Identifier, "Expecting identifier after 'def'");
+        try self.addIR(.Identifier, self.peekThenAdvance(), 0);
+
+        // TODO destructure
+        // TODO optionals and view infer
+
+        var isTyped = false;
+        if (!self.match(.Equal)) {
+            try self.typeRule();
+            isTyped = true;
+        }
+
+        try self.expectAdvance(.Equal, "Expecting '=' after an identifier in def declaration");
+
+        try self.expression();
+
+        try self.addIR(if (isTyped) .DefDecl else .DefUntypedDecl, tok, self.currentIrIndex() - end_index);
+    }
+
+    fn blockStmt(self: *Parser) ParseError!void {
+        const end_index = self.currentIrIndex();
+        const lbrace = self.peekThenAdvance();
+
+        while (!self.match(.Rbrace)) {
+            try self.statement();
+        }
+        self.advance(); // advancing the Rbrace
+
+        try self.addIR(.BlockStmt, lbrace, self.currentIrIndex() - end_index);
+    }
+
+    fn resultStmt(self: *Parser) ParseError!void {
+        const tok = self.peekThenAdvance();
+
+        if (self.matchAny(&[_]luv.TokenType{ .Rbrace, .Semicolon })) return try self.addIR(
+            switch (tok.tt) {
+                .Return => .ReturnStmt,
+                .Break => .BreakStmt,
+                .Yield => .YieldStmt,
+                else => unreachable,
+            },
+            tok,
+            0,
+        );
+
+        const end_index = self.currentIrIndex();
+        try self.expression();
+
+        try self.addIR(
+            switch (tok.tt) {
+                .Return => .ReturnStmt,
+                .Break => .BreakStmt,
+                .Yield => .YieldStmt,
+                else => unreachable,
+            },
+            tok,
+            self.currentIrIndex() - end_index,
+        );
+    }
+
+    fn statement(self: *Parser) ParseError!void {
+        const tok = self.curr();
+        switch (tok.tt) {
+            .Def => try self.defStmt(),
+            .Var => try self.varStmt(),
+            .Lbrace => try self.blockStmt(),
+            .Return, .Break, .Yield => try self.resultStmt(),
+            .Continue => try self.addIR(.ContinueStmt, tok, 0),
+            else => try self.expression(),
+        }
+        _ = self.matchThenAdvance(.Semicolon);
+    }
+
     fn topLevelStatement(self: *Parser) ParseError!void {
         const tok = self.curr();
         switch (tok.tt) {
@@ -756,6 +857,21 @@ pub const Parser = struct {
         self.allocator = allocator;
 
         try self.expression();
+
+        return self.result;
+    }
+
+    pub fn parseStmt(
+        self: *Parser,
+        allocator: std.mem.Allocator,
+        tokens: []const luv.Token,
+    ) ParseError!std.ArrayList(luv.IR) {
+        self.tokens = tokens;
+        self.result = try .initCapacity(allocator, 32);
+        errdefer self.result.deinit(self.allocator);
+        self.allocator = allocator;
+
+        try self.statement();
 
         return self.result;
     }

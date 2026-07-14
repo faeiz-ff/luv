@@ -3,6 +3,7 @@ const luv = @import("luv");
 
 const debug_parsemode = enum {
     Expr,
+    Stmt,
     FullProgram,
 };
 
@@ -25,6 +26,7 @@ inline fn debug_expectParseArray(
     var nodelist = switch (parse_mode) {
         .Expr => try p.parseExpr(t.allocator, toks.items),
         .FullProgram => try p.parse(t.allocator, toks.items),
+        .Stmt => try p.parseStmt(t.allocator, toks.items),
     };
     defer nodelist.deinit(t.allocator);
 
@@ -39,8 +41,87 @@ inline fn debug_expectParseArray(
     try t.expectEqualSlices(luv.IR, &expecteds, nodelist.items);
 }
 
+test "block stmt" {
+    const code =
+        \\ {
+        \\    var a int = 10
+        \\    a += 20
+        \\    return a
+        \\ }
+    ;
+
+    const expecteds = .{
+        .{ .Identifier, 2, 0 },
+        .{ .BuiltinType, 3, 0 },
+        .{ .IntLiteral, 5, 0 },
+        .{ .VarDecl, 1, 3 },
+        .{ .Identifier, 6, 0 },
+        .{ .IntLiteral, 8, 0 },
+        .{ .Assignment, 7, 2 },
+        .{ .Identifier, 10, 0 },
+        .{ .ReturnStmt, 9, 1 },
+        .{ .BlockStmt, 0, 9 },
+    };
+
+    try debug_expectParseArray(code, expecteds, .Stmt);
+}
+
+test "def stmt" {
+    const code =
+        \\ def a = 10
+    ;
+
+    const expecteds = .{
+        .{ .Identifier, 1, 0 },
+        .{ .IntLiteral, 3, 0 },
+        .{ .DefUntypedDecl, 0, 2 },
+    };
+
+    try debug_expectParseArray(code, expecteds, .Stmt);
+
+    const code2 =
+        \\ def a int = 10
+    ;
+
+    const expecteds2 = .{
+        .{ .Identifier, 1, 0 },
+        .{ .BuiltinType, 2, 0 },
+        .{ .IntLiteral, 4, 0 },
+        .{ .DefDecl, 0, 3 },
+    };
+
+    try debug_expectParseArray(code2, expecteds2, .Stmt);
+}
+
+test "var stmt" {
+    const code =
+        \\ var a = 10
+    ;
+
+    const expecteds = .{
+        .{ .Identifier, 1, 0 },
+        .{ .IntLiteral, 3, 0 },
+        .{ .VarUntypedDecl, 0, 2 },
+    };
+
+    try debug_expectParseArray(code, expecteds, .Stmt);
+
+    const code2 =
+        \\ var a int = 10
+    ;
+
+    const expecteds2 = .{
+        .{ .Identifier, 1, 0 },
+        .{ .BuiltinType, 2, 0 },
+        .{ .IntLiteral, 4, 0 },
+        .{ .VarDecl, 0, 3 },
+    };
+
+    try debug_expectParseArray(code2, expecteds2, .Stmt);
+}
+
 test "tag type" {
-    const code = 
+    const code =
         \\ typ Shape tag {
         \\     Cicle int
         \\     Rect  [int, int]
