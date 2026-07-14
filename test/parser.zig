@@ -39,6 +39,59 @@ inline fn debug_expectParseArray(
     try t.expectEqualSlices(luv.IR, &expecteds, nodelist.items);
 }
 
+test "tag type" {
+    const code = 
+        \\ typ Shape tag {
+        \\     Cicle int
+        \\     Rect  [int, int]
+        \\ }
+    ;
+
+    const expecteds = .{
+        .{ .Identifier, 1, 0 },
+        .{ .BuiltinType, 5, 0 },
+        .{ .TypedIdentifier, 4, 1 },
+        .{ .BuiltinType, 8, 0 },
+        .{ .BuiltinType, 10, 0 },
+        .{ .TupleType, 7, 2 },
+        .{ .TypedIdentifier, 6, 3 },
+        .{ .TagType, 2, 6 },
+        .{ .TypDecl, 0, 8 },
+        .{ .LuvProgram, 13, 9 },
+    };
+
+    try debug_expectParseArray(code, expecteds, .FullProgram);
+}
+
+test "nom type" {
+    const code =
+        \\ typ a nom {}
+        \\ typ box nom {
+        \\     thing int
+        \\     def constantThing int
+        \\ }
+    ;
+
+    const expecteds = .{
+        .{ .Identifier, 1, 0 },
+        .{ .NomType, 2, 0 },
+        .{ .TypDecl, 0, 2 },
+
+        .{ .Identifier, 6, 0 },
+        .{ .BuiltinType, 10, 0 },
+        .{ .TypedIdentifier, 9, 1 },
+        .{ .BuiltinType, 13, 0 },
+        .{ .TypedIdentifier, 12, 1 },
+        .{ .DefDecorator, 11, 2 },
+        .{ .NomType, 7, 5 },
+        .{ .TypDecl, 5, 7 },
+
+        .{ .LuvProgram, 15, 11 },
+    };
+
+    try debug_expectParseArray(code, expecteds, .FullProgram);
+}
+
 test "type decl generic decl" {
     const code =
         \\ typ ID[T any] T

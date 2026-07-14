@@ -107,6 +107,14 @@ pub const IRType = enum {
     DefDecorator,
     /// Stores fit token
     /// Has variadic number of children
+    /// the contents will be bare TypedIdentifier
+    TagType,
+    /// Stores fit token
+    /// Has variadic number of children
+    /// the contents will be bare TypedIdentifier or a DefDecorated one
+    NomType,
+    /// Stores fit token
+    /// Has variadic number of children
     /// the contents will be bare TypedIdentifier or a DefDecorated one
     FitType,
     /// Stores Lsquare token
