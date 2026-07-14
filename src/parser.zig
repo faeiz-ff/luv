@@ -85,7 +85,7 @@ pub const Parser = struct {
         }
 
         const tok = self.curr();
-        if (self.errors) |*err| err.errorUnexpectedToken(
+        if (self.errors) |*err| try err.errorUnexpectedToken(
             tok.pos,
             errMsg,
         );
@@ -163,7 +163,7 @@ pub const Parser = struct {
         }
 
         if (variadic != null and !self.match(.Rparen)) {
-            if (self.errors) |*err| err.errorFunVariadicUnclosed(
+            if (self.errors) |*err| try err.errorFunVariadicUnclosed(
                 self.curr().pos,
                 variadic.?.pos,
             );
@@ -231,7 +231,7 @@ pub const Parser = struct {
                 const tok = self.curr();
 
                 if (def) |d| {
-                    if (self.errors) |*err| err.warnRedundantToken(
+                    if (self.errors) |*err| try err.warnRedundantToken(
                         d.pos,
                         "The attribut that belongs to this def is a method, always a 'def'",
                     );
@@ -313,7 +313,7 @@ pub const Parser = struct {
         const lsquare = self.peekThenAdvance();
 
         if (self.match(.Rsquare)) {
-            if (self.errors) |*err| err.errorEmptyGeneric(lsquare.pos);
+            if (self.errors) |*err| try err.errorEmptyGeneric(lsquare.pos);
             return error.BadSyntax;
         }
 
@@ -491,7 +491,7 @@ pub const Parser = struct {
         if (self.matchAny(relationalTokens)) {
             const tok = self.peekThenAdvance();
 
-            if (self.errors) |*err| err.errorIllegalChainUseGrouping(
+            if (self.errors) |*err| try err.errorIllegalChainUseGrouping(
                 "relational expression",
                 tok.pos,
             );
@@ -634,7 +634,7 @@ pub const Parser = struct {
         switch (tok.tt) {
             .Def => try self.topLevelDef(),
             .Typ => try self.typeDecl(),
-            .Semicolon => if (self.errors) |*err| err.warnRedundantToken(
+            .Semicolon => if (self.errors) |*err| try err.warnRedundantToken(
                 tok.pos,
                 "Redundant semicolon on an empty statement",
             ),
@@ -662,7 +662,6 @@ pub const Parser = struct {
 
         try self.addIR(.LuvProgram, self.curr(), self.currentIrIndex());
 
-        if (self.errors) |*err| try err.flush();
         return self.result;
     }
 
@@ -677,7 +676,6 @@ pub const Parser = struct {
         self.allocator = allocator;
 
         try self.expression();
-        if (self.errors) |*err| try err.flush();
 
         return self.result;
     }
