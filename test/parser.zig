@@ -41,6 +41,36 @@ inline fn debug_expectParseArray(
     try t.expectEqualSlices(luv.IR, &expecteds, nodelist.items);
 }
 
+test "fun expr" {
+    const code =
+        \\ fun [T any](a T, ..b T) T { return a + b }
+    ;
+
+    const expecteds = .{
+        .{ .BuiltinType, 3, 0 },
+        .{ .TypedIdentifier, 2, 1 }, 
+        .{ .GenericDeclaration, 1, 2 }, 
+
+        .{ .Identifier, 7, 0 }, 
+        .{ .TypedIdentifier, 6, 1 }, 
+
+        .{ .Identifier, 11, 0 }, 
+        .{ .TypedIdentifier, 10, 1 }, 
+        .{ .RestPrefix, 9, 2 }, 
+
+        .{ .Identifier, 13, 0 }, 
+
+        .{ .Identifier, 16, 0 }, 
+        .{ .Identifier, 18, 0 }, 
+        .{ .Arithmetic, 17, 2 }, 
+        .{ .ReturnStmt, 15, 3 }, 
+        .{ .BlockStmt, 14, 4 }, 
+
+        .{ .FunExpr, 0, 14 }, 
+    };
+    try debug_expectParseArray(code, expecteds, .Expr);
+}
+
 test "block stmt" {
     const code =
         \\ {
@@ -183,8 +213,8 @@ test "type decl generic decl" {
         .{ .Identifier, 1, 0 },
         .{ .BuiltinType, 4, 0 },
         .{ .TypedIdentifier, 3, 1 },
+        .{ .GenericDeclaration, 2, 2 },
         .{ .Identifier, 6, 0 },
-        .{ .GenericDeclaration, 2, 3 },
         .{ .TypDecl, 0, 5 },
 
         .{ .Identifier, 8, 0 },
@@ -192,10 +222,10 @@ test "type decl generic decl" {
         .{ .TypedIdentifier, 10, 1 },
         .{ .Identifier, 14, 0 },
         .{ .TypedIdentifier, 13, 1 },
+        .{ .GenericDeclaration, 9, 4 },
         .{ .Identifier, 16, 0 },
         .{ .Identifier, 18, 0 },
         .{ .ResultType, 17, 2 },
-        .{ .GenericDeclaration, 9, 7 },
         .{ .TypDecl, 7, 9 },
 
         .{ .LuvProgram, 19, 16 },

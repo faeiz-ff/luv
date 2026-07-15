@@ -557,8 +557,72 @@ pub const Parser = struct {
         }
     }
 
+    fn funParameters(self: *Parser) ParseError!void {
+        try self.expectAdvance(.Lparen, "Expecting a parentheses for function parameter");
+        if (self.matchThenAdvance(.Rparen)) return;
+
+        var variadic: ?luv.Token = null;
+
+        while (true) : (if (!self.consumeCommaAndNotMatch(.Rparen) or variadic != null) break) {
+            if (self.match(.DotDot)) {
+                variadic = self.peekThenAdvance();
+                const variadic_end_index = self.currentIrIndex();
+
+                try self.expect(.Identifier, "Expecting identifier after variadic in function parameter");
+                const id = self.peekThenAdvance();
+
+                try self.typeRule();
+
+                try self.addIR(.TypedIdentifier, id, self.currentIrIndex() - variadic_end_index);
+
+                try self.addIR(.RestPrefix, variadic.?, self.currentIrIndex() - variadic_end_index);
+            } else {
+                const id_end_index = self.currentIrIndex();
+                try self.expect(.Identifier, "Expecting identifier-type pair in function parameter");
+                const id = self.peekThenAdvance();
+
+                try self.typeRule();
+
+                try self.addIR(.TypedIdentifier, id, self.currentIrIndex() - id_end_index);
+            }
+        }
+
+        if (variadic != null and !self.match(.Rparen)) {
+            if (self.errors) |*err| try err.errorFunVariadicUnclosed(
+                self.curr().pos,
+                variadic.?.pos,
+            );
+            return error.BadSyntax;
+        }
+
+        try self.expectAdvance(.Rparen, "Expecting a right parentheses for closing function parameters");
+    }
+
+    fn funExpr(self: *Parser) ParseError!void {
+        const end_index = self.currentIrIndex();
+        const fun = self.peekThenAdvance();
+
+        if (self.match(.Lsquare)) {
+            try self.genericDeclaration();
+        }
+
+        try self.funParameters();
+
+        if (!self.match(.Lbrace)) {
+            try self.typeRule();
+        }
+
+        try self.expect(.Lbrace, "Expecting a block in function expression");
+        try self.blockStmt();
+
+        try self.addIR(.FunExpr, fun, self.currentIrIndex() - end_index);
+    }
+
     fn expression(self: *Parser) ParseError!void {
-        return self.assignmentExpr();
+        switch (self.curr().tt) {
+            .Fun => try self.funExpr(),
+            else => try self.assignmentExpr(),
+        }
     }
 
     fn namespacedIdentifier(self: *Parser) ParseError!void {
@@ -601,7 +665,7 @@ pub const Parser = struct {
         try self.addIR(if (isTyped) .DefDecl else .DefUntypedDecl, def, self.currentIrIndex() - end_index);
     }
 
-    fn genericDeclaration(self: *Parser, innerFn: fn (self: *Parser) ParseError!void) ParseError!void {
+    fn genericDeclaration(self: *Parser) ParseError!void {
         const generic_end_index = self.currentIrIndex();
         const generic_token = self.peekThenAdvance();
         try self.expect(.Identifier, "Expecting atleast a single type bound in a generic declaration");
@@ -615,8 +679,6 @@ pub const Parser = struct {
         }
 
         try self.expectAdvance(.Rsquare, "Expecting a right curly bracket for closing generic declaration");
-
-        try innerFn(self);
 
         try self.addIR(.GenericDeclaration, generic_token, self.currentIrIndex() - generic_end_index);
     }
@@ -699,10 +761,10 @@ pub const Parser = struct {
         try self.namespacedIdentifier();
 
         if (self.match(.Lsquare)) {
-            try self.genericDeclaration(typeDeclRule);
-        } else {
-            try self.typeDeclRule();
+            try self.genericDeclaration();
         }
+
+        try self.typeDeclRule();
 
         try self.addIR(.TypDecl, typ_tok, self.result.items.len - end_index);
     }

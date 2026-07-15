@@ -64,7 +64,7 @@ fn runFile(io: std.Io, path: []const u8) !void {
     var parser: luv.Parser = .empty;
     parser.assignErr(code.items, stderr);
 
-    var irs: ?std.ArrayList(luv.IR) = parser.parseStmt(allocator, tokens.items) catch null;
+    var irs: ?std.ArrayList(luv.IR) = parser.parse(allocator, tokens.items) catch null;
     defer if (irs) |*ir| ir.deinit(allocator);
 
     if (irs) |irss| {

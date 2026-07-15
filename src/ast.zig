@@ -80,7 +80,7 @@ pub const IRType = enum {
     /// Binary, always have two children: name, expr
     DefUntypedDecl,
     /// Stores typ token
-    /// Binary, always have two children: name, typRule
+    /// Has two or three children: name, optional GenericDeclaration, and typRule
     TypDecl,
     /// Stores fun token
     /// Has variadic number of children
@@ -119,7 +119,7 @@ pub const IRType = enum {
     FitType,
     /// Stores Lsquare token
     /// Has variadic number of children
-    /// the contents will be TypedIdentifiers then at last is the wrapped AST
+    /// the contents will be TypedIdentifiers
     GenericDeclaration,
     /// Stores continue token
     /// Has no child
@@ -136,6 +136,11 @@ pub const IRType = enum {
     /// Stores Yield token
     /// Has zero or one child: expression
     YieldStmt,
+    /// Stores fun Token
+    /// Has variadic number of elements
+    /// follows the rule of: 
+    /// GenericDeclaration? TypedIdentifier* RestPrefix? TypeRule? BlockStmt
+    FunExpr,
 };
 
 /// Luv Intermediate Representation to store in an array.
