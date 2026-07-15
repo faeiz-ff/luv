@@ -11,7 +11,7 @@ topLevelStmt
       ) ';'?
     ;
 
-useStmt: use' 'test'? ID '=' STRING_LITERAL;
+useStmt: use' ID '=' STRING_LITERAL;
 
 tagType: 'tag' '{' (ID typeRule ','?)+ '}';
 

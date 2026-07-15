@@ -41,6 +41,31 @@ inline fn debug_expectParseArray(
     try t.expectEqualSlices(luv.IR, &expecteds, nodelist.items);
 }
 
+test "tuple expression" {
+    const code =
+        \\ ((1 + 1,), (1), (1,2,), ())
+    ;
+
+    const expecteds = .{
+        .{ .IntLiteral, 2, 0 },
+        .{ .IntLiteral, 4, 0 },
+        .{ .Arithmetic, 3, 2 },
+        .{ .TupleExpr, 1, 3 },
+
+        .{ .IntLiteral, 9, 0 },
+
+        .{ .IntLiteral, 13, 0 },
+        .{ .IntLiteral, 15, 0 },
+        .{ .TupleExpr, 12, 2 },
+
+        .{ .TupleExpr, 19, 0 },
+
+        .{ .TupleExpr, 0, 9 },
+    };
+
+    try debug_expectParseArray(code, expecteds, .Expr);
+}
+
 test "top level fun" {
     const code = 
         \\ fun main() {

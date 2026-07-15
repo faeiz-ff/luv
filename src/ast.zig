@@ -141,6 +141,9 @@ pub const IRType = enum {
     /// follows the rule of: 
     /// GenericDeclaration? TypedIdentifier* RestPrefix? TypeRule? BlockStmt
     FunExpr,
+    /// Stores Lparen token
+    /// Has variadic number of elements: expressions
+    TupleExpr,
 };
 
 /// Luv Intermediate Representation to store in an array.

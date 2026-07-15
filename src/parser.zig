@@ -132,9 +132,12 @@ pub const Parser = struct {
 
         try self.typeRule();
 
+        if (self.match(.Comma)) {
+            isTuple = true;
+        }
+
         while (self.consumeCommaAndNotMatch(.Rsquare)) {
             try self.typeRule();
-            isTuple = true;
         }
         try self.expectAdvance(.Rsquare, "Expecting a right square bracket for closing type");
 
@@ -202,11 +205,11 @@ pub const Parser = struct {
     }
 
     fn fitType(self: *Parser) ParseError!void {
+        const end_index = self.currentIrIndex();
         const fit = self.peekThenAdvance();
 
         try self.expectAdvance(.Lbrace, "Expecting curly brackets for fit type specification");
 
-        const end_index = self.currentIrIndex();
         const tokens = &[_]luv.TokenType{ .Identifier, .Def };
         var isFirstAttribute = true;
 
@@ -331,6 +334,32 @@ pub const Parser = struct {
         try self.addIR(.GenericFulfillPostFix, lsquare, self.currentIrIndex() - end_index);
     }
 
+    fn tupleOrGroupingExpr(self: *Parser) ParseError!void {
+        const end_index = self.currentIrIndex();
+        const lparen = self.peekThenAdvance();
+        var isTuple = false;
+
+        if (self.matchThenAdvance(.Rparen)) {
+            try self.addIR(.TupleExpr, lparen, 0);
+            return;
+        }
+
+        try self.expression();
+
+        if (self.match(.Comma)) {
+            isTuple = true;
+        }
+
+        while (self.consumeCommaAndNotMatch(.Rparen)) {
+            try self.expression();
+        }
+        try self.expectAdvance(.Rparen, "Expecting a right parentheses for closing expression");
+
+        if (isTuple) {
+            try self.addIR(.TupleExpr, lparen, self.currentIrIndex() - end_index);
+        }
+    }
+
     fn primaryExpr(self: *Parser) ParseError!void {
         const tok = self.curr();
 
@@ -351,12 +380,7 @@ pub const Parser = struct {
                 self.advance();
                 try self.addIR(.Identifier, tok, 0);
             },
-            // TODO tuple literal
-            .Lparen => {
-                self.advance();
-                try self.expression();
-                try self.expectAdvance(.Rparen, "Expecting closing right parentheses");
-            },
+            .Lparen => try self.tupleOrGroupingExpr(),
             .Int, .Str, .Bol, .Flo => {
                 self.advance();
                 try self.addIR(.BuiltinType, tok, 0);
@@ -375,18 +399,17 @@ pub const Parser = struct {
 
         const tok = self.curr();
         switch (tok.tt) {
-            .Identifier => {
-                const id = self.peekThenAdvance();
-
-                try self.addIR(.Identifier, id, 0);
-                try self.addIR(.DotAccess, dot, self.currentIrIndex() - end_index);
-            },
+            .Identifier => try self.addIR(.Identifier, self.peekThenAdvance(), 0),
+            .IntLiteral => try self.addIR(.IntLiteral, self.peekThenAdvance(), 0),
+            .Lparen => try self.tupleOrGroupingExpr(),
             // TODO
             else => {
                 if (self.errors) |*err| try err.errorExpectedSomeRule(tok.pos, "Dot PostFix");
                 return error.BadSyntax;
             },
         }
+
+        try self.addIR(.DotAccess, dot, self.currentIrIndex() - end_index);
     }
 
     fn callPostFix(self: *Parser, end_index: usize) ParseError!void {
