@@ -41,6 +41,27 @@ inline fn debug_expectParseArray(
     try t.expectEqualSlices(luv.IR, &expecteds, nodelist.items);
 }
 
+test "top level fun" {
+    const code = 
+        \\ fun main() {
+        \\     print("Hello World")
+        \\ }
+    ;
+
+    const expecteds = .{
+        .{ .Identifier, 1, 0 },
+        .{ .Identifier, 5, 0 },
+        .{ .StringLiteral, 7, 0 },
+        .{ .CallPostFix, 6, 2 },
+        .{ .BlockStmt, 4, 3 },
+        .{ .FunExpr, 0, 4 },
+        .{ .DefUntypedDecl, 0, 6 },
+        .{ .LuvProgram, 10, 7 },
+    };
+
+    try debug_expectParseArray(code, expecteds, .FullProgram);
+}
+
 test "fun expr" {
     const code =
         \\ fun [T any](a T, ..b T) T { return a + b }

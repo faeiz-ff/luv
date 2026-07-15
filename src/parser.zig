@@ -769,6 +769,32 @@ pub const Parser = struct {
         try self.addIR(.TypDecl, typ_tok, self.result.items.len - end_index);
     }
 
+    fn topLevelFun(self: *Parser) ParseError!void {
+        const end_index = self.currentIrIndex();
+        const fun = self.peekThenAdvance();
+
+        try self.namespacedIdentifier();
+
+        const fun_end_index = self.currentIrIndex();
+
+        if (self.match(.Lsquare)) {
+            try self.genericDeclaration();
+        }
+
+        try self.funParameters();
+
+        if (!self.match(.Lbrace)) {
+            try self.typeRule();
+        }
+
+        try self.expect(.Lbrace, "Expecting a block in function expression");
+        try self.blockStmt();
+
+        try self.addIR(.FunExpr, fun, self.currentIrIndex() - fun_end_index);
+
+        try self.addIR(.DefUntypedDecl, fun, self.currentIrIndex() - end_index);
+    }
+
     fn varStmt(self: *Parser) ParseError!void {
         const end_index = self.currentIrIndex();
         const tok = self.peekThenAdvance();
@@ -878,6 +904,7 @@ pub const Parser = struct {
                 tok.pos,
                 "Redundant semicolon on an empty statement",
             ),
+            .Fun => try self.topLevelFun(),
 
             // TODO
             else => {
