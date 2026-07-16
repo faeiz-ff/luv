@@ -1,5 +1,24 @@
 const std = @import("std");
-const luv = @import("root.zig");
+const luv = @This();
+
+pub const Token = @import("token.zig").Token;
+pub const TokenType = @import("token.zig").TokenType;
+pub const Position = @import("token.zig").Position;
+
+pub const Lexer = @import("lexer.zig").Lexer;
+pub const LexError = @import("lexer.zig").LexError;
+
+pub const ErrorReport = @import("error-report.zig").ErrorReport;
+pub const Colors = @import("error-report.zig").Colors;
+pub const getLine = @import("error-report.zig").getLine;
+
+pub const IR = @import("ast.zig").IR;
+pub const IRType = @import("ast.zig").IRType;
+
+pub const Parser = @import("parser.zig").Parser;
+pub const ParseError = @import("parser.zig").ParseError;
+
+pub const ParserErrorReport = @import("parser-error.zig").ParserErrorReport;
 
 pub fn main(init: std.process.Init) !void {
     const io = init.io;
@@ -72,7 +91,7 @@ fn runFile(io: std.Io, path: []const u8) !void {
         try luv.IR.printTree(stdout, irss.items);
         try stdout.print("\n", .{});
         for (irss.items) |ir| {
-            try stdout.print("{any}\n", .{ ir });
+            try stdout.print("{any}\n", .{ir});
             // try stdout.print("{s: <15} v{d: <3} : {s} at {d}, {d}\n", .{
             //     @tagName(ir.irtype),
             //     ir.end_offset,

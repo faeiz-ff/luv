@@ -1,5 +1,5 @@
 const std = @import("std");
-const luv = @import("root.zig");
+const luv = @import("root");
 
 /// Ansi Colors add reset to color it back to normal
 pub const Colors = struct {
