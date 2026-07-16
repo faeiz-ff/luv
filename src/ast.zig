@@ -147,6 +147,9 @@ pub const IRType = enum {
     /// Stores caret token
     /// Unary, always have one child
     ExportDecorator,
+    /// Stores Lbrace token
+    /// Has variadic number of elements: Assignment, a DefDecorated one, or RestPrefix
+    ObjExpr,
 };
 
 /// Luv Intermediate Representation to store in an array.

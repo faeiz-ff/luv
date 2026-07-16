@@ -41,6 +41,34 @@ inline fn debug_expectParseArray(
     try t.expectEqualSlices(luv.IR, &expecteds, nodelist.items);
 }
 
+test "obj expression" {
+    const code = 
+        \\ {
+        \\     b = 1
+        \\     def c = 0, 
+        \\     ..opt,
+        \\ }
+    ;
+
+    const expecteds = .{
+        .{ .Identifier, 1, 0 },
+        .{ .IntLiteral, 3, 0 },
+        .{ .Assignment, 2, 2 },
+
+        .{ .Identifier, 5, 0 },
+        .{ .IntLiteral, 7, 0 },
+        .{ .Assignment, 6, 2 },
+        .{ .DefDecorator, 4, 3 },
+
+        .{ .Identifier, 10, 0 },
+        .{ .RestPrefix, 9, 1 },
+
+        .{ .ObjExpr, 0, 9 },
+    };
+
+    try debug_expectParseArray(code, expecteds, .Expr);
+}
+
 test "export" {
     const code =
         \\ def ^a = 1

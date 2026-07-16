@@ -208,17 +208,11 @@ pub const Parser = struct {
         try self.expectAdvance(.Lbrace, "Expecting curly brackets for fit type specification");
 
         const tokens = &[_]luv.TokenType{ .Identifier, .Def };
-        var isFirstAttribute = true;
 
         while (true) : (if (!self.matchAny(tokens)) break) {
             const def = if (self.match(.Def)) self.peekThenAdvance() else null;
 
-            if (isFirstAttribute) {
-                try self.expect(.Identifier, "Expecting atleast a single attribute in a fit literal type");
-            } else {
-                try self.expect(.Identifier, "Expecting an Identifier after def attribute decorator in fit literal type");
-            }
-            isFirstAttribute = false;
+            try self.expect(.Identifier, "Expecting Identifier in a fit literal type");
 
             const id_end_index = self.currentIrIndex();
             const id = self.peekThenAdvance();
@@ -230,7 +224,7 @@ pub const Parser = struct {
                 if (def) |d| {
                     if (self.errors) |*err| try err.warnRedundantToken(
                         d.pos,
-                        "The attribut that belongs to this def is a method, always a 'def'",
+                        "The attribute that belongs to this def is a method, always a 'def'",
                     );
                 }
 
@@ -353,6 +347,48 @@ pub const Parser = struct {
         }
     }
 
+    fn objExpr(self: *Parser) ParseError!void {
+        const end_index = self.currentIrIndex();
+        const lbrace = self.peekThenAdvance();
+        if (self.matchThenAdvance(.Rbrace)) return self.addIR(.ObjExpr, lbrace, 0);
+
+        const tokens = &[_]luv.TokenType{ .Identifier, .Def, .DotDot };
+
+        while (true) : (if (!self.matchAny(tokens)) break) {
+            const attribute_end_index = self.currentIrIndex();
+
+            if (self.match(.DotDot)) {
+                const tok = self.peekThenAdvance();
+
+                try self.expression();
+                try self.addIR(.RestPrefix, tok, self.currentIrIndex() - attribute_end_index);
+
+                _ = self.matchThenAdvance(.Comma);
+                continue;
+            }
+
+            const def = if (self.match(.Def)) self.peekThenAdvance() else null;
+
+            try self.expect(.Identifier, "Expecting an Identifier in object expression");
+            try self.addIR(.Identifier, self.peekThenAdvance(), 0);
+
+            try self.expect(.Equal, "Expecting a '=' after identifier");
+            const eql = self.peekThenAdvance();
+
+            try self.expression();
+
+            try self.addIR(.Assignment, eql, self.currentIrIndex() - attribute_end_index);
+
+            if (def) |tok| try self.addIR(.DefDecorator, tok, self.currentIrIndex() - attribute_end_index);
+
+            _ = self.matchThenAdvance(.Comma);
+        }
+
+        try self.expectAdvance(.Rbrace, "Expecting a right curly bracket for closing object expression");
+
+        try self.addIR(.ObjExpr, lbrace, self.currentIrIndex() - end_index);
+    }
+
     fn primaryExpr(self: *Parser) ParseError!void {
         const tok = self.curr();
 
@@ -374,6 +410,7 @@ pub const Parser = struct {
                 try self.addIR(.Identifier, tok, 0);
             },
             .Lparen => try self.tupleOrGroupingExpr(),
+            .Lbrace => try self.objExpr(),
             .Int, .Str, .Bol, .Flo => {
                 self.advance();
                 try self.addIR(.BuiltinType, tok, 0);
