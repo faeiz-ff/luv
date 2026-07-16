@@ -1,5 +1,5 @@
 const std = @import("std");
-const luv = @import("root.zig");
+const luv = @import("luv");
 
 pub const LexError = error{
     BadSyntax,
@@ -392,7 +392,7 @@ pub const Lexer = struct {
                 .withLineMsg(self.code, self.pos, "expecting " ++ expect)
                 .flush() catch return LexError.WriteFailed;
         }
-       return LexError.BadSyntax;
+        return LexError.BadSyntax;
     }
 
     /// Returns a single token, from the current char index slicing self.code

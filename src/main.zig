@@ -1,5 +1,5 @@
 const std = @import("std");
-const luv = @import("root.zig");
+const luv = @import("luv");
 
 pub fn main(init: std.process.Init) !void {
     const io = init.io;

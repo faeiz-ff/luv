@@ -1,5 +1,5 @@
 const std = @import("std");
-const luv = @import("root.zig");
+const luv = @import("luv");
 
 pub const ParserErrorReport = struct {
     code: []const u8,
@@ -61,9 +61,9 @@ pub const ParserErrorReport = struct {
     }
 
     pub fn errorExpectedSomeRule(self: *Self, pos: luv.Position, comptime rule: []const u8) !void {
-            try self.reporter
-                .report(.Err, rule ++ " Not Found")
-                .withLineMsg(self.code, pos, "Expecting " ++ rule ++ " rule here")
-                .flush();
+        try self.reporter
+            .report(.Err, rule ++ " Not Found")
+            .withLineMsg(self.code, pos, "Expecting " ++ rule ++ " rule here")
+            .flush();
     }
 };

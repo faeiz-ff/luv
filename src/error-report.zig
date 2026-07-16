@@ -1,5 +1,5 @@
 const std = @import("std");
-const luv = @import("root.zig");
+const luv = @import("luv");
 
 /// Ansi Colors add reset to color it back to normal
 pub const Colors = struct {
@@ -61,7 +61,7 @@ pub const ErrorReport = struct {
                 errheader,
             });
         } else {
-            self.safePrint("[{s}] {s}:\n", .{ @tagName(ty), errheader});
+            self.safePrint("[{s}] {s}:\n", .{ @tagName(ty), errheader });
         }
         return self;
     }
@@ -76,7 +76,7 @@ pub const ErrorReport = struct {
                 filename,
             });
         } else {
-            self.safePrint("  at {s}\n", .{ filename });
+            self.safePrint("  at {s}\n", .{filename});
         }
         return self;
     }
@@ -92,7 +92,7 @@ pub const ErrorReport = struct {
             self.safePrint("{s}  at line {d}\n", .{ Colors.Cyan, pos.y + 1 });
             self.safePrint("{s}  |  {s}\n", .{ Colors.White, line.? });
         } else {
-            self.safePrint("  at line {d}\n", .{ pos.y + 1 });
+            self.safePrint("  at line {d}\n", .{pos.y + 1});
             self.safePrint("  |  {s}\n", .{line.?});
         }
 
@@ -134,7 +134,7 @@ pub const ErrorReport = struct {
     pub fn flush(self: *Self) error{WriteFailed}!void {
         if (self.hasFailedWrite) return error.WriteFailed;
         if (Ansi) {
-            self.safePrint("{s}", .{ Colors.Reset });
+            self.safePrint("{s}", .{Colors.Reset});
         }
         try self.writer.flush();
     }

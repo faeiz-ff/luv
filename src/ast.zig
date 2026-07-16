@@ -1,5 +1,5 @@
 const std = @import("std");
-const luv = @import("root.zig");
+const luv = @import("luv");
 
 /// Intermediate Representation enum, dictates what the ir type is
 /// and what token gets stored
@@ -138,7 +138,7 @@ pub const IRType = enum {
     YieldStmt,
     /// Stores fun Token
     /// Has variadic number of elements
-    /// follows the rule of: 
+    /// follows the rule of:
     /// GenericDeclaration? TypedIdentifier* RestPrefix? TypeRule? BlockStmt
     FunExpr,
     /// Stores Lparen token
