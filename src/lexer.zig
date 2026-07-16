@@ -1,5 +1,5 @@
 const std = @import("std");
-const luv = @import("root");
+const luv = @import("root.zig");
 
 pub const LexError = error{
     BadSyntax,

@@ -1,5 +1,5 @@
 const std = @import("std");
-const luv = @import("root");
+const luv = @import("root.zig");
 
 /// Intermediate Representation enum, dictates what the ir type is
 /// and what token gets stored
