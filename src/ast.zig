@@ -144,6 +144,9 @@ pub const IRType = enum {
     /// Stores Lparen token
     /// Has variadic number of elements: expressions
     TupleExpr,
+    /// Stores caret token
+    /// Unary, always have one child
+    ExportDecorator,
 };
 
 /// Luv Intermediate Representation to store in an array.

@@ -123,7 +123,6 @@ pub const Parser = struct {
     fn tupleOrGroupingType(self: *Parser) ParseError!void {
         const end_index = self.currentIrIndex();
         const lsquare = self.peekThenAdvance();
-        var isTuple = false;
 
         if (self.matchThenAdvance(.Rsquare)) {
             try self.addIR(.TupleType, lsquare, 0);
@@ -132,9 +131,7 @@ pub const Parser = struct {
 
         try self.typeRule();
 
-        if (self.match(.Comma)) {
-            isTuple = true;
-        }
+        const isTuple = if (self.match(.Comma)) true else false;
 
         while (self.consumeCommaAndNotMatch(.Rsquare)) {
             try self.typeRule();
@@ -214,10 +211,7 @@ pub const Parser = struct {
         var isFirstAttribute = true;
 
         while (true) : (if (!self.matchAny(tokens)) break) {
-            var def: ?luv.Token = null;
-            if (self.match(.Def)) {
-                def = self.peekThenAdvance();
-            }
+            const def = if (self.match(.Def)) self.peekThenAdvance() else null;
 
             if (isFirstAttribute) {
                 try self.expect(.Identifier, "Expecting atleast a single attribute in a fit literal type");
@@ -273,7 +267,6 @@ pub const Parser = struct {
             .Fun => return self.funType(),
             .Sym => return self.symType(),
             .Fit => return self.fitType(),
-            // TODO
             else => {
                 if (self.errors) |*err| try err.errorExpectedSomeRule(tok.pos, "Type");
                 return error.BadSyntax;
@@ -385,8 +378,6 @@ pub const Parser = struct {
                 self.advance();
                 try self.addIR(.BuiltinType, tok, 0);
             },
-
-            // TODO
             else => {
                 if (self.errors) |*err| try err.errorExpectedSomeRule(tok.pos, "Expression");
                 return error.BadSyntax;
@@ -402,7 +393,6 @@ pub const Parser = struct {
             .Identifier => try self.addIR(.Identifier, self.peekThenAdvance(), 0),
             .IntLiteral => try self.addIR(.IntLiteral, self.peekThenAdvance(), 0),
             .Lparen => try self.tupleOrGroupingExpr(),
-            // TODO
             else => {
                 if (self.errors) |*err| try err.errorExpectedSomeRule(tok.pos, "Dot PostFix");
                 return error.BadSyntax;
@@ -668,11 +658,12 @@ pub const Parser = struct {
         const end_index = self.currentIrIndex();
         const def = self.peekThenAdvance();
 
-        // TODO def test and exported
+        // TODO def test
+        const caret = if (self.match(.Caret)) self.peekThenAdvance() else null;
+
         try self.expect(.Identifier, "Expecting identifier after 'def' for top level def statement");
         try self.namespacedIdentifier();
 
-        // TODO destructure
         // TODO optionals and view infer
 
         var isTyped = false;
@@ -686,6 +677,8 @@ pub const Parser = struct {
         try self.expression();
 
         try self.addIR(if (isTyped) .DefDecl else .DefUntypedDecl, def, self.currentIrIndex() - end_index);
+
+        if (caret) |tok| try self.addIR(.ExportDecorator, tok, self.currentIrIndex() - end_index);
     }
 
     fn genericDeclaration(self: *Parser) ParseError!void {
@@ -717,16 +710,13 @@ pub const Parser = struct {
         }
 
         const end_index = self.currentIrIndex();
-        const tokens = &[_]luv.TokenType{ .Identifier, .Def };
+        const tokens = &[_]luv.TokenType{ .Identifier, .Def, .Caret };
 
-        // TODO export modifier
         while (true) : (if (!self.matchAny(tokens)) break) {
-            var def: ?luv.Token = null;
-            if (self.match(.Def)) {
-                def = self.peekThenAdvance();
-                try self.expect(.Identifier, "Expecting an Identifier after def attribute decorator in nom type");
-            }
+            const def = if (self.match(.Def)) self.peekThenAdvance() else null;
+            const caret = if (self.match(.Caret)) self.peekThenAdvance() else null;
 
+            try self.expect(.Identifier, "Expecting an Identifier after def attribute decorator in nom type");
             const id_end_index = self.currentIrIndex();
             const id = self.peekThenAdvance();
 
@@ -734,9 +724,9 @@ pub const Parser = struct {
 
             try self.addIR(.TypedIdentifier, id, self.currentIrIndex() - id_end_index);
 
-            if (def) |tok| {
-                try self.addIR(.DefDecorator, tok, self.currentIrIndex() - id_end_index);
-            }
+            if (def) |tok| try self.addIR(.DefDecorator, tok, self.currentIrIndex() - id_end_index);
+            if (caret) |tok| try self.addIR(.ExportDecorator, tok, self.currentIrIndex() - id_end_index);
+
             _ = self.matchThenAdvance(.Comma);
         }
 
@@ -779,7 +769,8 @@ pub const Parser = struct {
         const end_index = self.result.items.len;
         const typ_tok = self.peekThenAdvance();
 
-        // TODO export modifier
+        const caret = if (self.match(.Caret)) self.peekThenAdvance() else null;
+
         try self.expect(.Identifier, "Expecting identifier after 'typ' for type declaration");
         try self.namespacedIdentifier();
 
@@ -790,12 +781,17 @@ pub const Parser = struct {
         try self.typeDeclRule();
 
         try self.addIR(.TypDecl, typ_tok, self.result.items.len - end_index);
+
+        if (caret) |tok| try self.addIR(.ExportDecorator, tok, self.currentIrIndex() - end_index);
     }
 
     fn topLevelFun(self: *Parser) ParseError!void {
         const end_index = self.currentIrIndex();
         const fun = self.peekThenAdvance();
 
+        const caret = if (self.match(.Caret)) self.peekThenAdvance() else null;
+
+        try self.expect(.Identifier, "Expecting an identifier for top level function declaration");
         try self.namespacedIdentifier();
 
         const fun_end_index = self.currentIrIndex();
@@ -816,6 +812,8 @@ pub const Parser = struct {
         try self.addIR(.FunExpr, fun, self.currentIrIndex() - fun_end_index);
 
         try self.addIR(.DefUntypedDecl, fun, self.currentIrIndex() - end_index);
+
+        if (caret) |tok| try self.addIR(.ExportDecorator, tok, self.currentIrIndex() - end_index);
     }
 
     fn varStmt(self: *Parser) ParseError!void {
@@ -929,7 +927,7 @@ pub const Parser = struct {
             ),
             .Fun => try self.topLevelFun(),
 
-            // TODO
+            // TODO useStmt
             else => {
                 if (self.errors) |*err| try err.errorExpectedSomeRule(tok.pos, "Top Level Statement");
                 return error.BadSyntax;

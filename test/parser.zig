@@ -41,6 +41,46 @@ inline fn debug_expectParseArray(
     try t.expectEqualSlices(luv.IR, &expecteds, nodelist.items);
 }
 
+test "export" {
+    const code =
+        \\ def ^a = 1
+        \\ fun ^b (){}
+        \\ typ ^c nom {
+        \\     ^a int 
+        \\     def ^b int 
+        \\ }
+    ;
+
+    const expecteds = .{
+        .{ .Identifier, 2, 0 },
+        .{ .IntLiteral, 4, 0 },
+        .{ .DefUntypedDecl, 0, 2 },
+        .{ .ExportDecorator, 1, 3 },
+
+        .{ .Identifier, 7, 0 },
+        .{ .BlockStmt, 10, 0 },
+        .{ .FunExpr, 5, 1 },
+        .{ .DefUntypedDecl, 5, 3 },
+        .{ .ExportDecorator, 6, 4 },
+
+        .{ .Identifier, 14, 0 },
+        .{ .BuiltinType, 19, 0 },
+        .{ .TypedIdentifier, 18, 1 },
+        .{ .ExportDecorator, 17, 2 },
+        .{ .BuiltinType, 23, 0 },
+        .{ .TypedIdentifier, 22, 1 },
+        .{ .DefDecorator, 20, 2 },
+        .{ .ExportDecorator, 21, 3 },
+        .{ .NomType, 15, 7 },
+        .{ .TypDecl, 12, 9 },
+        .{ .ExportDecorator, 13, 10 },
+
+        .{ .LuvProgram, 25, 20 },
+    };
+
+    try debug_expectParseArray(code, expecteds, .FullProgram);
+}
+
 test "tuple expression" {
     const code =
         \\ ((1 + 1,), (1), (1,2,), ())
@@ -67,7 +107,7 @@ test "tuple expression" {
 }
 
 test "top level fun" {
-    const code = 
+    const code =
         \\ fun main() {
         \\     print("Hello World")
         \\ }
@@ -94,25 +134,25 @@ test "fun expr" {
 
     const expecteds = .{
         .{ .BuiltinType, 3, 0 },
-        .{ .TypedIdentifier, 2, 1 }, 
-        .{ .GenericDeclaration, 1, 2 }, 
+        .{ .TypedIdentifier, 2, 1 },
+        .{ .GenericDeclaration, 1, 2 },
 
-        .{ .Identifier, 7, 0 }, 
-        .{ .TypedIdentifier, 6, 1 }, 
+        .{ .Identifier, 7, 0 },
+        .{ .TypedIdentifier, 6, 1 },
 
-        .{ .Identifier, 11, 0 }, 
-        .{ .TypedIdentifier, 10, 1 }, 
-        .{ .RestPrefix, 9, 2 }, 
+        .{ .Identifier, 11, 0 },
+        .{ .TypedIdentifier, 10, 1 },
+        .{ .RestPrefix, 9, 2 },
 
-        .{ .Identifier, 13, 0 }, 
+        .{ .Identifier, 13, 0 },
 
-        .{ .Identifier, 16, 0 }, 
-        .{ .Identifier, 18, 0 }, 
-        .{ .Arithmetic, 17, 2 }, 
-        .{ .ReturnStmt, 15, 3 }, 
-        .{ .BlockStmt, 14, 4 }, 
+        .{ .Identifier, 16, 0 },
+        .{ .Identifier, 18, 0 },
+        .{ .Arithmetic, 17, 2 },
+        .{ .ReturnStmt, 15, 3 },
+        .{ .BlockStmt, 14, 4 },
 
-        .{ .FunExpr, 0, 14 }, 
+        .{ .FunExpr, 0, 14 },
     };
     try debug_expectParseArray(code, expecteds, .Expr);
 }
