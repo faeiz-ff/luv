@@ -62,7 +62,7 @@ fun main() {
 }
 ```
 
-The methods will be stored in one VTable where each instances will carry the pointer to it.
+If a nominal is converted into a structural type, the methods will be stored in one VTable where each instances will carry the pointer to it.
 
 `nom` and `tag` are Nominally typed.
 
@@ -95,7 +95,7 @@ fun main() {
 
 ```
 
-Because there can be so many shape of an object that fits a `fit`, it cannot have namespace on its own. 
+Because there can be so many shape of an object that fits a `fit`, it cannot call methods from its namespace on its own. 
 But because nominals may carry a VTable pointer, the object shape in a `fit` may also include the method, creating an interface.
 
 ```luv

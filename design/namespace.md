@@ -1,7 +1,7 @@
 
 # Namespace
 
-A namespace is created by Nominal types. To create a bare namespace, use an empty `nom {}`
+A namespace can be created by all typedefs. If a bare namespace is needed, use `nil` or `[]`
 
 Unlike objects, namespaces are extensible (inside module). This allows outside code to attach a new thing, like methods that satisfies a `fit`, into an already existing namespace of a nominal type, as long as the names dont clash (no shadowing).
 
@@ -9,7 +9,7 @@ A `def` statement is used for attaching constant value into a identifier. At the
 
 
 ```luv
-typ Math nom {}
+typ Math []
 
 def Math.pi = 3.14
 def Math.e = 2.71
