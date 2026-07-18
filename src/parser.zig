@@ -113,6 +113,8 @@ pub const Parser = struct {
         return self.result.items.len;
     }
 
+    /// returns true if theres a comma ahead and its not followed by a bracket_type
+    /// commas will be consumed if it exists either way
     fn consumeCommaAndNotMatch(self: *Parser, bracket_type: luv.TokenType) bool {
         if (self.matchThenAdvance(.Comma) and !self.match(bracket_type)) {
             return true;
@@ -207,12 +209,10 @@ pub const Parser = struct {
 
         try self.expectAdvance(.Lbrace, "Expecting curly brackets for fit type specification");
 
-        const tokens = &[_]luv.TokenType{ .Identifier, .Def };
-
-        while (true) : (if (!self.matchAny(tokens)) break) {
+        while (!self.matchThenAdvance(.Rbrace)) {
             const def = if (self.match(.Def)) self.peekThenAdvance() else null;
 
-            try self.expect(.Identifier, "Expecting Identifier in a fit literal type");
+            try self.expect(.Identifier, "Expecting Identifier in a fit type");
 
             const id_end_index = self.currentIrIndex();
             const id = self.peekThenAdvance();
@@ -243,8 +243,6 @@ pub const Parser = struct {
             }
             _ = self.matchThenAdvance(.Comma);
         }
-
-        try self.expectAdvance(.Rbrace, "Expecting a right curly bracket for closing fit type");
 
         try self.addIR(.FitType, fit, self.currentIrIndex() - end_index);
     }
@@ -350,11 +348,8 @@ pub const Parser = struct {
     fn objExpr(self: *Parser) ParseError!void {
         const end_index = self.currentIrIndex();
         const lbrace = self.peekThenAdvance();
-        if (self.matchThenAdvance(.Rbrace)) return self.addIR(.ObjExpr, lbrace, 0);
 
-        const tokens = &[_]luv.TokenType{ .Identifier, .Def, .DotDot };
-
-        while (true) : (if (!self.matchAny(tokens)) break) {
+        while (!self.matchThenAdvance(.Rbrace)) {
             const attribute_end_index = self.currentIrIndex();
 
             if (self.match(.DotDot)) {
@@ -383,8 +378,6 @@ pub const Parser = struct {
 
             _ = self.matchThenAdvance(.Comma);
         }
-
-        try self.expectAdvance(.Rbrace, "Expecting a right curly bracket for closing object expression");
 
         try self.addIR(.ObjExpr, lbrace, self.currentIrIndex() - end_index);
     }
@@ -740,20 +733,13 @@ pub const Parser = struct {
         const nom = self.peekThenAdvance();
 
         try self.expectAdvance(.Lbrace, "Expecting curly brackets for nom type");
-
-        if (self.matchThenAdvance(.Rbrace)) {
-            try self.addIR(.NomType, nom, 0);
-            return;
-        }
-
         const end_index = self.currentIrIndex();
-        const tokens = &[_]luv.TokenType{ .Identifier, .Def, .Caret };
 
-        while (true) : (if (!self.matchAny(tokens)) break) {
+        while (!self.matchThenAdvance(.Rbrace)) {
             const def = if (self.match(.Def)) self.peekThenAdvance() else null;
             const caret = if (self.match(.Caret)) self.peekThenAdvance() else null;
 
-            try self.expect(.Identifier, "Expecting an Identifier after def attribute decorator in nom type");
+            try self.expect(.Identifier, "Expecting an Identifier in nom type");
             const id_end_index = self.currentIrIndex();
             const id = self.peekThenAdvance();
 
@@ -767,8 +753,6 @@ pub const Parser = struct {
             _ = self.matchThenAdvance(.Comma);
         }
 
-        try self.expectAdvance(.Rbrace, "Expecting a right curly bracket for closing nom type");
-
         try self.addIR(.NomType, nom, self.currentIrIndex() - end_index);
     }
 
@@ -778,18 +762,16 @@ pub const Parser = struct {
         try self.expectAdvance(.Lbrace, "Expecting curly brackets for tag type");
 
         const end_index = self.currentIrIndex();
-        try self.expect(.Identifier, "Expecting atleast one tagged type in tag type");
 
-        while (true) : (if (!self.match(.Identifier)) break) {
+        while (!self.matchThenAdvance(.Rbrace)) {
             const id_end_index = self.currentIrIndex();
+            try self.expect(.Identifier, "Expecting Identifier in tag type");
             const id = self.peekThenAdvance();
             try self.typeRule();
 
             try self.addIR(.TypedIdentifier, id, self.currentIrIndex() - id_end_index);
             _ = self.matchThenAdvance(.Comma);
         }
-
-        try self.expectAdvance(.Rbrace, "Expecting a right curly bracket for closing nom type");
 
         try self.addIR(.TagType, tag, self.currentIrIndex() - end_index);
     }
