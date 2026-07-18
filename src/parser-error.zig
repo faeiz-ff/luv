@@ -63,7 +63,7 @@ pub const ParserErrorReport = struct {
     pub fn errorExpectedSomeRule(self: *Self, pos: luv.Position, comptime rule: []const u8) !void {
         try self.reporter
             .report(.Err, rule ++ " Not Found")
-            .withLineMsg(self.code, pos, "Expecting " ++ rule ++ " rule here")
+            .withLineMsg(self.code, pos, "Expecting " ++ rule ++ " here")
             .flush();
     }
 

@@ -17,6 +17,9 @@ pub const IRType = enum {
     /// Stores string token
     /// Has no child
     StringLiteral,
+    /// Stores boolean token
+    /// Has no child
+    BooleanLiteral,
     /// Stores identifier token
     /// Has no child
     Identifier,
@@ -150,6 +153,16 @@ pub const IRType = enum {
     /// Stores Lbrace token
     /// Has variadic number of elements: Assignment, a DefDecorated one, or RestPrefix
     ObjExpr,
+    /// Stores of token
+    /// Unary, always have one child: the tag ID
+    OfPrefix,
+    /// Stores if/elif token
+    /// Has variadic number of elements
+    /// follows the rule of:
+    /// (Var|DefDecls)* expression? BlockStmt ifExpr* elseExpr?
+    /// atleast one declarations or expressions for IFs
+    /// no decls or exprs for Else
+    IfExpr,
 };
 
 /// Luv Intermediate Representation to store in an array.

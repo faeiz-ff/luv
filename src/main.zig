@@ -71,16 +71,16 @@ fn runFile(io: std.Io, path: []const u8) !void {
         luv.IR.reverseSlice(irss.items);
         try luv.IR.printTree(stdout, irss.items);
         try stdout.print("\n", .{});
-        for (irss.items) |ir| {
-            try stdout.print("{any}\n", .{ ir });
-            // try stdout.print("{s: <15} v{d: <3} : {s} at {d}, {d}\n", .{
-            //     @tagName(ir.irtype),
-            //     ir.end_offset,
-            //     ir.token.lexeme,
-            //     ir.token.pos.x,
-            //     ir.token.pos.y,
-            // });
-        }
+        // for (irss.items) |ir| {
+        //     try stdout.print("{any}\n", .{ ir });
+        //     // try stdout.print("{s: <15} v{d: <3} : {s} at {d}, {d}\n", .{
+        //     //     @tagName(ir.irtype),
+        //     //     ir.end_offset,
+        //     //     ir.token.lexeme,
+        //     //     ir.token.pos.x,
+        //     //     ir.token.pos.y,
+        //     // });
+        // }
     } else {
         try stdout.print("Bad Syntax, parse failed\n", .{});
     }

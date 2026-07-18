@@ -41,6 +41,59 @@ inline fn debug_expectParseArray(
     try t.expectEqualSlices(luv.IR, &expecteds, nodelist.items);
 }
 
+test "if expr" {
+    const code =
+        \\ if true {
+        \\    return 1
+        \\ } elif def b int = 1 and isCondition {
+        \\    return 2
+        \\ } elif var a = 2 and var b of Circle = a -> 3
+        \\ else {
+        \\    return 4
+        \\ }
+    ;
+
+    const expecteds = .{
+        .{ .BooleanLiteral, 1, 0 },
+        .{ .IntLiteral, 4, 0 },
+        .{ .ReturnStmt, 3, 1 },
+        .{ .BlockStmt, 2, 2 },
+
+        .{ .Identifier, 8, 0 },
+        .{ .BuiltinType, 9, 0 },
+        .{ .IntLiteral, 11, 0 },
+        .{ .DefDecl, 7, 3 },
+        .{ .Identifier, 13, 0 },
+        .{ .IntLiteral, 16, 0 },
+        .{ .ReturnStmt, 15, 1 },
+        .{ .BlockStmt, 14, 2 },
+
+        .{ .Identifier, 20, 0 },
+        .{ .IntLiteral, 22, 0 },
+        .{ .VarUntypedDecl, 19, 2 },
+        .{ .Identifier, 25, 0 },
+        .{ .Identifier, 27, 0 },
+        .{ .OfPrefix, 26, 1 },
+        .{ .Identifier, 29, 0 },
+        .{ .VarDecl, 24, 4 },
+        .{ .IntLiteral, 31, 0 },
+        .{ .YieldStmt, 30, 1 },
+
+        .{ .IntLiteral, 35, 0 },
+        .{ .ReturnStmt, 34, 1 },
+        .{ .BlockStmt, 33, 2 },
+        .{ .IfExpr, 32, 3 },
+
+        .{ .IfExpr, 18, 14 },
+
+        .{ .IfExpr, 6, 23 },
+
+        .{ .IfExpr, 0, 28 },
+    };
+
+    try debug_expectParseArray(code, expecteds, .Expr);
+}
+
 test "infer optional view" {
     const code =
         \\ def a? = 1

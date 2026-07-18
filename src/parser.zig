@@ -122,6 +122,16 @@ pub const Parser = struct {
         return false;
     }
 
+    fn vardefIRChooseFrom(tt: luv.TokenType, typed: bool) luv.IRType {
+        if (tt == .Var) {
+            if (typed) return .VarDecl;
+            return .VarUntypedDecl;
+        } else {
+            if (typed) return .DefDecl;
+            return .DefUntypedDecl;
+        }
+    }
+
     fn tupleOrGroupingType(self: *Parser) ParseError!void {
         const end_index = self.currentIrIndex();
         const lsquare = self.peekThenAdvance();
@@ -404,7 +414,11 @@ pub const Parser = struct {
             },
             .Lparen => try self.tupleOrGroupingExpr(),
             .Lbrace => try self.objExpr(),
-            .Int, .Str, .Bol, .Flo => {
+            .True, .False => {
+                self.advance();
+                try self.addIR(.BooleanLiteral, tok, 0);
+            },
+            .Int, .Str, .Bol, .Flo, .Nil => {
                 self.advance();
                 try self.addIR(.BuiltinType, tok, 0);
             },
@@ -661,8 +675,93 @@ pub const Parser = struct {
         try self.addIR(.FunExpr, fun, self.currentIrIndex() - end_index);
     }
 
+    fn ifVarGuard(self: *Parser) ParseError!void {
+        const end_index = self.currentIrIndex();
+        const tok = self.peekThenAdvance();
+
+        try self.destructurePattern();
+
+        const isTyped = if (self.match(.Of)) blk: {
+            const of = self.peekThenAdvance();
+
+            try self.expect(.Identifier, "Expecting identifier after 'of'");
+            try self.addIR(.Identifier, self.peekThenAdvance(), 0);
+
+            try self.addIR(.OfPrefix, of, 1);
+            break :blk true;
+        } else if (!self.match(.Equal)) blk: {
+            try self.typeRule();
+            break :blk true;
+        } else false;
+
+        try self.expectAdvance(.Equal, "Expecting '=' sign for if variable definition");
+
+        try self.relationalExpr();
+
+        try self.addIR(vardefIRChooseFrom(tok.tt, isTyped), tok, self.currentIrIndex() - end_index);
+
+        if (!self.matchAny(&.{ .Lbrace, .Arrow })) {
+            try self.expectAdvance(.And, "Expecting 'and' for bridging if variable and if condition");
+        }
+    }
+
+    fn arrowOrBlock(self: *Parser) ParseError!void {
+        const tok = self.curr();
+        switch (tok.tt) {
+            .Arrow => {
+                const end_index = self.currentIrIndex();
+                self.advance();
+                try self.expression();
+                try self.addIR(.YieldStmt, tok, self.currentIrIndex() - end_index);
+            },
+            .Lbrace => try self.blockStmt(),
+            else => {
+                if (self.errors) |*err| try err.errorExpectedSomeRule(tok.pos, "Arrow or BlockStmt");
+                return error.BadSyntax;
+            },
+        }
+    }
+
+    fn ifExpr(self: *Parser) ParseError!void {
+        const end_index = self.currentIrIndex();
+        const if_tok = self.peekThenAdvance();
+
+        var hasGuard = false;
+        while (self.matchAny(&.{ .Var, .Def })) {
+            try self.ifVarGuard();
+            hasGuard = true;
+        }
+
+        if (!hasGuard and self.matchAny(&.{ .Lbrace, .Arrow })) {
+            if (self.errors) |*err| try err.errorExpectedSomeRule(
+                self.curr().pos,
+                "if condition",
+            );
+            return error.BadSyntax;
+        }
+
+        if (!self.matchAny(&.{ .Lbrace, .Arrow })) try self.expression();
+
+        try self.arrowOrBlock();
+
+        if (self.match(.Elif)) {
+            try self.ifExpr();
+        }
+
+        if (self.match(.Else)) {
+            const else_end_index = self.currentIrIndex();
+            const else_tok = self.peekThenAdvance();
+            try self.arrowOrBlock();
+
+            try self.addIR(.IfExpr, else_tok, self.currentIrIndex() - else_end_index);
+        }
+
+        try self.addIR(.IfExpr, if_tok, self.currentIrIndex() - end_index);
+    }
+
     fn expression(self: *Parser) ParseError!void {
         switch (self.curr().tt) {
+            .If => try self.ifExpr(),
             .Fun => try self.funExpr(),
             else => try self.assignmentExpr(),
         }
