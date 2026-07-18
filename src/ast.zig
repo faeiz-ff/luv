@@ -68,16 +68,16 @@ pub const IRType = enum {
     /// Unary, always have one child
     ViewType,
     /// Stores var token
-    /// Ternary, always have three children: name, type, expr
+    /// Ternary, always have three children: name or destructure, type, expr
     VarDecl,
     /// Stores var token
-    /// Binary, always have two children: name, expr
+    /// Binary, always have two children: name or destructure, expr
     VarUntypedDecl,
     /// Stores def token
-    /// Ternary, always have three children: name, type, expr
+    /// Ternary, always have three children: name or destructure, type, expr
     DefDecl,
     /// Stores def token
-    /// Binary, always have two children: name, expr
+    /// Binary, always have two children: name or destructure, expr
     DefUntypedDecl,
     /// Stores typ token
     /// Has two or three children: name, optional GenericDeclaration, and typRule
