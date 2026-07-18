@@ -11,7 +11,7 @@ topLevelStmt
       ) ';'?
     ;
 
-useStmt: use' ID '=' STRING_LITERAL;
+useStmt: 'use' ID '=' STRING_LITERAL;
 
 tagType: 'tag' '{' (ID typeRule ','?)+ '}';
 
@@ -59,20 +59,18 @@ stmt
 
 blockStmt: '{' (stmt ';'?)* '}';
 
-patternMatch: ID (',' ID)*;
-
-typePattern: (typeRule | '&' | '?');
+patternMatch: (ID ('&' | '?')?) (',' ID ('&' | '?')?)*;
 
 capturePattern: ('var' | 'def') patternMatch;
 
 defTopStmt
-    : 'def' '^'? nameSpacedIdentifier (typeRule | '&' | '?')? '=' expr
+    : 'def' '^'? nameSpacedIdentifier ('&' | '?')? typeRule? '=' expr
     | 'def' 'test' STRING_LITERAL blockStmt
     ;
 
-defStmt: 'def' patternMatch typePattern? '=' expr;
+defStmt: 'def' patternMatch typeRule? '=' expr;
 
-varStmt: 'var' patternMatch typePattern? '=' expr;
+varStmt: 'var' patternMatch typeRule? '=' expr;
 
 funParams: '(' (ID typeRule (',' ID typeRule)* (',' '..' ID typeRule)? | '..' ID typeRule)? ','? ')';
 
@@ -89,7 +87,7 @@ expr
     | assignment
     ;
 
-varGuard: capturePattern (typePattern | 'of' ID)? '=' postFixExpr;
+varGuard: capturePattern (typeRule | 'of' ID)? '=' postFixExpr;
 
 ifGuard
     : varGuard ('and' varGuard)* ('and' expr)?
@@ -107,7 +105,7 @@ matchTag: ((patternMatch 'of')? ID ('->' expr | blockStmt) ';'?)+;
 lambdaExpr: 'fun' genericDeclaration? funParams typeRule? blockStmt;
 
 forExpr
-    : 'for' capturePattern typePattern? 'in' expr blockStmt
+    : 'for' capturePattern typeRule? 'in' expr blockStmt
     | 'for' blockStmt
     | 'for' expr blockStmt
     ;
