@@ -66,4 +66,11 @@ pub const ParserErrorReport = struct {
             .withLineMsg(self.code, pos, "Expecting " ++ rule ++ " rule here")
             .flush();
     }
+
+    pub fn errorTupleDestructure(self: *Self, pos: luv.Position, comptime in: []const u8) !void {
+        try self.reporter
+            .report(.Err, "Invalid Syntax")
+            .withLineMsg(self.code, pos, "Tuple destructure is not allowed in " ++ in)
+            .flush();
+    } 
 };

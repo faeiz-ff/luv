@@ -694,7 +694,12 @@ pub const Parser = struct {
         try self.expect(.Identifier, "Expecting identifier after 'def' for top level def statement");
         try self.namespacedIdentifier();
 
-        // TODO optionals and view infer
+        try self.inferOptionalView(end_index);
+
+        if (self.match(.Comma)) {
+            if (self.errors) |*err| try err.errorTupleDestructure(self.curr().pos, "Top level def");
+            return error.BadSyntax;
+        }
 
         var isTyped = false;
         if (!self.match(.Equal)) {
@@ -808,6 +813,7 @@ pub const Parser = struct {
         const end_index = self.currentIrIndex();
         const fun = self.peekThenAdvance();
 
+        // TODO fun test
         const caret = if (self.match(.Caret)) self.peekThenAdvance() else null;
 
         try self.expect(.Identifier, "Expecting an identifier for top level function declaration");
@@ -835,15 +841,38 @@ pub const Parser = struct {
         if (caret) |tok| try self.addIR(.ExportDecorator, tok, self.currentIrIndex() - end_index);
     }
 
+    fn inferOptionalView(self: *Parser, end_index: usize) ParseError!void {
+        switch (self.curr().tt) {
+            .QuestionMark => try self.addIR(.OptionalType, self.peekThenAdvance(), self.currentIrIndex() - end_index),
+            .Ampersand => try self.addIR(.ViewType, self.peekThenAdvance(), self.currentIrIndex() - end_index),
+            else => {},
+        }
+    }
+
+    fn destructurePattern(self: *Parser) ParseError!void {
+        const end_index = self.currentIrIndex();
+        try self.addIR(.Identifier, self.peekThenAdvance(), 0);
+
+        try self.inferOptionalView(end_index);
+
+        const tupleDestructure = if (self.match(.Comma)) self.curr() else null;
+
+        while (self.matchThenAdvance(.Comma)) {
+            try self.expect(.Identifier, "Expecting identifier in tuple destructure");
+            try self.addIR(.Identifier, self.peekThenAdvance(), 0);
+
+            try self.inferOptionalView(end_index);
+        }
+
+        if (tupleDestructure) |tup| try self.addIR(.TupleType, tup, self.currentIrIndex() - end_index);
+    }
+
     fn varStmt(self: *Parser) ParseError!void {
         const end_index = self.currentIrIndex();
         const tok = self.peekThenAdvance();
 
         try self.expect(.Identifier, "Expecting identifier after 'var'");
-        try self.addIR(.Identifier, self.peekThenAdvance(), 0);
-
-        // TODO destructure
-        // TODO optionals and view infer
+        try self.destructurePattern();
 
         var isTyped = false;
         if (!self.match(.Equal)) {
@@ -863,10 +892,7 @@ pub const Parser = struct {
         const tok = self.peekThenAdvance();
 
         try self.expect(.Identifier, "Expecting identifier after 'def'");
-        try self.addIR(.Identifier, self.peekThenAdvance(), 0);
-
-        // TODO destructure
-        // TODO optionals and view infer
+        try self.destructurePattern();
 
         var isTyped = false;
         if (!self.match(.Equal)) {

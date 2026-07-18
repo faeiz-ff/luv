@@ -41,8 +41,68 @@ inline fn debug_expectParseArray(
     try t.expectEqualSlices(luv.IR, &expecteds, nodelist.items);
 }
 
+test "infer optional view" {
+    const code =
+        \\ def a? = 1
+        \\
+        \\ fun main() {
+        \\     def b& = 2
+        \\ }
+    ;
+
+    const expected = .{
+        .{ .Identifier, 1, 0 },
+        .{ .OptionalType, 2, 1 },
+        .{ .IntLiteral, 4, 0 },
+        .{ .DefUntypedDecl, 0, 3 },
+
+        .{ .Identifier, 6, 0 },
+        .{ .Identifier, 11, 0 },
+        .{ .ViewType, 12, 1 },
+        .{ .IntLiteral, 14, 0 },
+        .{ .DefUntypedDecl, 10, 3 },
+        .{ .BlockStmt, 9, 4 },
+        .{ .FunExpr, 5, 5 },
+        .{ .DefUntypedDecl, 5, 7 },
+
+        .{ .LuvProgram, 16, 12 },
+    };
+
+    try debug_expectParseArray(code, expected, .FullProgram);
+}
+
+test "tuple destructure" {
+    const code =
+        \\ {
+        \\     var a, b = thing
+        \\     def a, b [int, flo] = thing2
+        \\ }
+    ;
+
+    const expected = .{
+        .{ .Identifier, 2, 0 },
+        .{ .Identifier, 4, 0 },
+        .{ .TupleType, 3, 2 },
+        .{ .Identifier, 6, 0 },
+        .{ .VarUntypedDecl, 1, 4 },
+
+        .{ .Identifier, 8, 0 },
+        .{ .Identifier, 10, 0 },
+        .{ .TupleType, 9, 2 },
+        .{ .BuiltinType, 12, 0 },
+        .{ .BuiltinType, 14, 0 },
+        .{ .TupleType, 11, 2 },
+        .{ .Identifier, 17, 0 },
+        .{ .DefDecl, 7, 7 },
+
+        .{ .BlockStmt, 0, 13 },
+    };
+
+    try debug_expectParseArray(code, expected, .Stmt);
+}
+
 test "obj expression" {
-    const code = 
+    const code =
         \\ {
         \\     b = 1
         \\     def c = 0, 
