@@ -227,7 +227,7 @@ pub const Parser = struct {
                 variadic = self.peekThenAdvance();
                 const variadic_end_index = self.currentIrIndex();
 
-                if (self.match(.Own)) { 
+                if (self.match(.Own)) {
                     try self.addIR(.BuiltinType, self.peekThenAdvance(), 0);
                 } else {
                     try self.typeRule();
@@ -235,7 +235,7 @@ pub const Parser = struct {
 
                 try self.addIR(.RestPrefix, variadic.?, self.currentIrIndex() - variadic_end_index);
             } else {
-                if (self.match(.Own)) { 
+                if (self.match(.Own)) {
                     try self.addIR(.BuiltinType, self.peekThenAdvance(), 0);
                 } else {
                     try self.typeRule();
@@ -253,7 +253,7 @@ pub const Parser = struct {
 
         try self.expectAdvance(.Rparen, "Expecting a right parentheses for closing function parameters");
 
-        if (self.match(.Own)) { 
+        if (self.match(.Own)) {
             try self.addIR(.BuiltinType, self.peekThenAdvance(), 0);
         } else {
             try self.typeRule();
@@ -365,6 +365,26 @@ pub const Parser = struct {
         try self.addIR(.GenericFulfillPostFix, lsquare, self.currentIrIndex() - end_index);
     }
 
+    fn tupleExpr(self: *Parser) ParseError!void {
+        const end_index = self.currentIrIndex();
+        const lparen = self.peekThenAdvance();
+
+        if (self.matchThenAdvance(.Rparen)) {
+            try self.addIR(.TupleExpr, lparen, 0);
+            return;
+        }
+
+        try self.expression();
+
+        while (self.consumeCommaAndNotMatch(.Rparen)) {
+            try self.expression();
+        }
+
+        try self.expectAdvance(.Rparen, "Expecting a right parentheses for closing tuple expression");
+
+        try self.addIR(.TupleExpr, lparen, self.currentIrIndex() - end_index);
+    }
+
     fn tupleOrGroupingExpr(self: *Parser) ParseError!void {
         const end_index = self.currentIrIndex();
         const lparen = self.peekThenAdvance();
@@ -472,7 +492,7 @@ pub const Parser = struct {
         switch (tok.tt) {
             .Identifier => try self.addIR(.Identifier, self.peekThenAdvance(), 0),
             .IntLiteral => try self.addIR(.IntLiteral, self.peekThenAdvance(), 0),
-            .Lparen => try self.tupleOrGroupingExpr(),
+            .Lparen => try self.tupleExpr(),
             .Lbrace => try self.objExpr(),
             else => {
                 if (self.errors) |*err| try err.errorExpectedSomeRule(tok.pos, "Dot PostFix");

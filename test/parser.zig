@@ -41,6 +41,21 @@ inline fn debug_expectParseArray(
     try t.expectEqualSlices(luv.IR, &expecteds, nodelist.items);
 }
 
+test "postfix tuple" {
+    const code = 
+        \\ code.(1)
+    ;
+
+    const expecteds = .{
+        .{ .Identifier, 0, 0 },
+        .{ .IntLiteral, 3, 0 },
+        .{ .TupleExpr, 2, 1 },
+        .{ .DotAccess, 1, 3 },
+    };
+
+    try debug_expectParseArray(code, expecteds, .Expr);
+}
+
 test "match expr" {
     const code =
         \\ match own {
