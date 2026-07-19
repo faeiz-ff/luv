@@ -41,6 +41,53 @@ inline fn debug_expectParseArray(
     try t.expectEqualSlices(luv.IR, &expecteds, nodelist.items);
 }
 
+test "for expr" {
+    const code =
+        \\ for {
+        \\ }
+    ;
+
+    const expecteds = .{
+        .{ .BlockStmt, 1, 0 },
+        .{ .ForExpr, 0, 1 },
+    };
+
+    try debug_expectParseArray(code, expecteds, .Expr);
+
+    const code2 =
+        \\ for true and false {
+        \\ }
+    ;
+
+    const expecteds2 = .{
+        .{ .BooleanLiteral, 1, 0 },
+        .{ .BooleanLiteral, 3, 0 },
+        .{ .LogicBinary, 2, 2 },
+        .{ .BlockStmt, 4, 0 },
+        .{ .ForExpr, 0, 4 },
+    };
+
+    try debug_expectParseArray(code2, expecteds2, .Expr);
+
+    const code3 =
+        \\ for def i,j in thing {
+        \\ }
+    ;
+
+    const expecteds3 = .{
+        .{ .Identifier, 2, 0 },
+        .{ .Identifier, 4, 0 },
+        .{ .TupleType, 3, 2 },
+        .{ .Identifier, 6, 0 },
+        .{ .DefUntypedDecl, 1, 4 },
+        .{ .BlockStmt, 7, 0 },
+        .{ .ForExpr, 0, 6 },
+    };
+
+    try debug_expectParseArray(code3, expecteds3, .Expr);
+
+}
+
 test "if expr" {
     const code =
         \\ if true {

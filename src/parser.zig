@@ -759,8 +759,40 @@ pub const Parser = struct {
         try self.addIR(.IfExpr, if_tok, self.currentIrIndex() - end_index);
     }
 
+    fn forExpr(self: *Parser) ParseError!void {
+        const end_index = self.currentIrIndex();
+        const for_tok = self.peekThenAdvance();
+
+        const tok = self.curr();
+        switch (tok.tt) {
+            .Var, .Def => {
+                self.advance();
+                try self.destructurePattern();
+
+                const typed = if (!self.match(.In)) blk: {
+                    try self.typeRule();
+                    break :blk true;
+                } else false;
+
+                try self.expectAdvance(.In, "Expecting 'in' after 'for' variable definition");
+
+                try self.expression();
+
+                try self.addIR(vardefIRChooseFrom(tok.tt, typed), tok, self.currentIrIndex() - end_index);
+            },
+            else => try self.expression(),
+            .Lbrace => {},
+        }
+
+        try self.expect(.Lbrace, "Expecting block statement inside 'for' expression");
+        try self.blockStmt();
+
+        try self.addIR(.ForExpr, for_tok, self.currentIrIndex() - end_index);
+    }
+
     fn expression(self: *Parser) ParseError!void {
         switch (self.curr().tt) {
+            .For => try self.forExpr(),
             .If => try self.ifExpr(),
             .Fun => try self.funExpr(),
             else => try self.assignmentExpr(),
