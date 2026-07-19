@@ -28,8 +28,6 @@ fun main() {
 }
 ```
 
-`else` can be used inside a `match-tag` expression for a catchall. But the captured variable will be of type `any`.
-
 tag variants can be created using the dotPostFix of objLiteral or tupLiteral. With objLiteral creation, an object will be created, this only works for fit. with tupLiteral of one element, it will assign it as the value. With tupLiteral of two or more, the args will be of N element tuple. If nil or [] is the variant type, then the 0 argument tuple will construct that.
 
 ## Builtin Tag

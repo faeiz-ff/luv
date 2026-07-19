@@ -437,6 +437,7 @@ pub const Parser = struct {
             .Identifier => try self.addIR(.Identifier, self.peekThenAdvance(), 0),
             .IntLiteral => try self.addIR(.IntLiteral, self.peekThenAdvance(), 0),
             .Lparen => try self.tupleOrGroupingExpr(),
+            .Lbrace => try self.objExpr(),
             else => {
                 if (self.errors) |*err| try err.errorExpectedSomeRule(tok.pos, "Dot PostFix");
                 return error.BadSyntax;
@@ -790,8 +791,82 @@ pub const Parser = struct {
         try self.addIR(.ForExpr, for_tok, self.currentIrIndex() - end_index);
     }
 
+    fn matchCaseArms(self: *Parser) ParseError!void {
+        while (self.match(.Case)) {
+            const end_index = self.currentIrIndex();
+            const case_tok = self.peekThenAdvance();
+
+            try self.expression();
+
+            while (self.matchThenAdvance(.Comma) and !self.matchAny(&.{ .Lbrace, .Arrow })) {
+                try self.expression();
+            }
+
+            try self.arrowOrBlock();
+
+            _ = self.matchThenAdvance(.Comma);
+
+            try self.addIR(.MatchCaseArm, case_tok, self.currentIrIndex() - end_index);
+        }
+    }
+
+    fn matchTagArms(self: *Parser) ParseError!void {
+        while (self.match(.Identifier)) {
+            const end_index = self.currentIrIndex();
+            const id = self.curr();
+
+            try self.destructurePattern();
+
+            // A tag arm can start with just its own tag name which will just emit one ID
+            const of_tok = if (self.currentIrIndex() != end_index + 1 or self.match(.Of)) blk: {
+                try self.expect(.Of, "Expecting 'of' keyword for matching a tag");
+                const tok = self.peekThenAdvance();
+
+                try self.addIR(.Identifier, self.peekThenAdvance(), 0);
+
+                try self.addIR(.OfPrefix, tok, 1);
+
+                break :blk tok;
+            } else null;
+
+            try self.arrowOrBlock();
+
+            _ = self.matchThenAdvance(.Comma);
+
+            try self.addIR(.MatchTagArm, if (of_tok) |tok| tok else id, self.currentIrIndex() - end_index);
+        }
+    }
+
+    fn matchExpr(self: *Parser) ParseError!void {
+        const end_index = self.currentIrIndex();
+        const match_tok = self.peekThenAdvance();
+
+        try self.expression();
+
+        try self.expectAdvance(.Lbrace, "Expecting curly brackets for match expression");
+
+        const tok = self.curr();
+        switch (tok.tt) {
+            .Case => try self.matchCaseArms(),
+            .Identifier => try self.matchTagArms(),
+            else => {
+                if (self.errors) |*err| try err.errorExpectedSomeRule(tok.pos, "Case or Tag matching");
+                return error.BadSyntax;
+            },
+        }
+
+        if (self.matchThenAdvance(.Else)) {
+            try self.arrowOrBlock();
+        }
+
+        try self.expectAdvance(.Rbrace, "Expecting a right closing curly brackets for match expression");
+
+        try self.addIR(.MatchExpr, match_tok, self.currentIrIndex() - end_index);
+    }
+
     fn expression(self: *Parser) ParseError!void {
         switch (self.curr().tt) {
+            .Match => try self.matchExpr(),
             .For => try self.forExpr(),
             .If => try self.ifExpr(),
             .Fun => try self.funExpr(),

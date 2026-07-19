@@ -96,11 +96,11 @@ ifGuard
 
 ifExpr: 'if' ifGuard (blockStmt | '->' expr) ('elif' ifGuard (blockStmt | '->' expr ))* ('else' (blockStmt | '->' expr))?;
 
-matchExpr: 'match' expr '{' (matchCase | matchTag) ((('var' | 'def') ID)? 'else' ('->' expr | blockStmt))?'}';
+matchExpr: 'match' expr '{' (matchCase | matchTag) ('else' ('->' expr | blockStmt) ','?)?'}';
 
-matchCase: ('case' expr (',' expr)* ('->' expr | blockStmt) ';'?)+;
+matchCase: ('case' expr (',' expr)* ('->' expr | blockStmt) ','?)+;
 
-matchTag: ((patternMatch 'of')? ID ('->' expr | blockStmt) ';'?)+;
+matchTag: ((patternMatch 'of')? ID ('->' expr | blockStmt) ','?)+;
 
 lambdaExpr: 'fun' genericDeclaration? funParams typeRule? blockStmt;
 

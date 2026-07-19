@@ -140,34 +140,49 @@ pub const IRType = enum {
     /// Has zero or one child: expression
     YieldStmt,
     /// Stores fun Token
-    /// Has variadic number of elements
+    /// Has variadic number of children
     /// follows the rule of:
     /// GenericDeclaration? TypedIdentifier* RestPrefix? TypeRule? BlockStmt
     FunExpr,
     /// Stores Lparen token
-    /// Has variadic number of elements: expressions
+    /// Has variadic number of children: expressions
     TupleExpr,
     /// Stores caret token
     /// Unary, always have one child
     ExportDecorator,
     /// Stores Lbrace token
-    /// Has variadic number of elements: Assignment, a DefDecorated one, or RestPrefix
+    /// Has variadic number of children: Assignment, a DefDecorated one, or RestPrefix
     ObjExpr,
     /// Stores of token
     /// Unary, always have one child: the tag ID
     OfPrefix,
     /// Stores if/elif/else token
-    /// Has variadic number of elements
+    /// Has variadic number of children
     /// follows the rule of:
     /// (Var|DefDecls)* expression? BlockStmt ifExpr* elseExpr?
     /// atleast one declarations or expressions for IFs
     /// no decls or exprs for Else
     IfExpr,
     /// Stores for token
-    /// Has variadic number of elements
+    /// Has variadic number of children
     /// follows the rule of:
     /// (decl expression | expression)? BlockStmt
     ForExpr,
+    /// Stores match token
+    /// Has variadic number of children
+    /// follows the rule of:
+    /// expression (MatchTagArm*|MatchCaseArm*) (decl? Yield|BlockStmt)?
+    MatchExpr,
+    /// Stores case token
+    /// Has variadic number of children
+    /// follows the rule of:
+    /// expression+ (Yield|BlockStmt)
+    MatchCaseArm, 
+    /// Stores identifier/of token
+    /// Has variadic number of children
+    /// follows te rule of:
+    /// (destructure 'of')? ID (Yield|BlockStmt)
+    MatchTagArm,
 };
 
 /// Luv Intermediate Representation to store in an array.

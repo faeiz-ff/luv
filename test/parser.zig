@@ -41,6 +41,80 @@ inline fn debug_expectParseArray(
     try t.expectEqualSlices(luv.IR, &expecteds, nodelist.items);
 }
 
+test "match expr" {
+    const code =
+        \\ match own {
+        \\     case 1 -> 1,
+        \\     case 2, 3, -> 2.5,
+        \\     else -> 0
+        \\ }
+    ;
+
+    const expected = .{
+        .{ .Identifier, 1, 0 },
+
+        .{ .IntLiteral, 4, 0 },
+        .{ .IntLiteral, 6, 0 },
+        .{ .YieldStmt, 5, 1 },
+        .{ .MatchCaseArm, 3, 3 },
+
+        .{ .IntLiteral, 9, 0 },
+        .{ .IntLiteral, 11, 0 },
+        .{ .FloatLiteral, 14, 0 },
+        .{ .YieldStmt, 13, 1 },
+        .{ .MatchCaseArm, 8, 4 },
+
+        .{ .IntLiteral, 18, 0 },
+        .{ .YieldStmt, 17, 1 },
+        .{ .MatchExpr, 0, 12 },
+    };
+
+    try debug_expectParseArray(code, expected, .Expr);
+
+    const code2 =
+        \\ match own {
+        \\     r of Circle -> r,
+        \\     h, w of Square -> h * w
+        \\     Point -> 0,
+        \\     else -> 0
+        \\ }
+    ;
+
+    const expecteds2 = .{
+        .{ .Identifier, 1, 0 },
+
+        .{ .Identifier, 3, 0 },
+        .{ .Identifier, 5, 0 },
+        .{ .OfPrefix, 4, 1 },
+        .{ .Identifier, 7, 0 },
+        .{ .YieldStmt, 6, 1 },
+        .{ .MatchTagArm, 4, 5 },
+
+        .{ .Identifier, 9, 0 },
+        .{ .Identifier, 11, 0 },
+        .{ .TupleType, 10, 2 },
+        .{ .Identifier, 13, 0 },
+        .{ .OfPrefix, 12, 1 },
+        .{ .Identifier, 15, 0 },
+        .{ .Identifier, 17, 0 },
+        .{ .Arithmetic, 16, 2 },
+        .{ .YieldStmt, 14, 3 },
+        .{ .MatchTagArm, 12, 9 },
+
+        .{ .Identifier, 18, 0 },
+        .{ .IntLiteral, 20, 0 },
+        .{ .YieldStmt, 19, 1 },
+        .{ .MatchTagArm, 18, 3 },
+
+        .{ .IntLiteral, 24, 0 },
+        .{ .YieldStmt, 23, 1 },
+
+        .{ .MatchExpr, 0, 23 },
+    };
+
+    try debug_expectParseArray(code2, expecteds2, .Expr);
+}
+
 test "for expr" {
     const code =
         \\ for {
@@ -85,7 +159,6 @@ test "for expr" {
     };
 
     try debug_expectParseArray(code3, expecteds3, .Expr);
-
 }
 
 test "if expr" {
