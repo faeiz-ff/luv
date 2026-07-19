@@ -213,6 +213,55 @@ pub const Parser = struct {
         try self.addIR(.SymType, sym, self.currentIrIndex() - end_index);
     }
 
+    fn methodType(self: *Parser) ParseError!void {
+        const method_end_index = self.currentIrIndex();
+        const tok = self.curr();
+
+        try self.expectAdvance(.Lparen, "Expecting a parentheses for function type parameters");
+        if (self.matchThenAdvance(.Rparen)) return;
+
+        var variadic: ?luv.Token = null;
+
+        while (true) : (if (!self.consumeCommaAndNotMatch(.Rparen) or variadic != null) break) {
+            if (self.match(.DotDot)) {
+                variadic = self.peekThenAdvance();
+                const variadic_end_index = self.currentIrIndex();
+
+                if (self.match(.Own)) { 
+                    try self.addIR(.BuiltinType, self.peekThenAdvance(), 0);
+                } else {
+                    try self.typeRule();
+                }
+
+                try self.addIR(.RestPrefix, variadic.?, self.currentIrIndex() - variadic_end_index);
+            } else {
+                if (self.match(.Own)) { 
+                    try self.addIR(.BuiltinType, self.peekThenAdvance(), 0);
+                } else {
+                    try self.typeRule();
+                }
+            }
+        }
+
+        if (variadic != null and !self.match(.Rparen)) {
+            if (self.errors) |*err| try err.errorFunVariadicUnclosed(
+                self.curr().pos,
+                variadic.?.pos,
+            );
+            return error.BadSyntax;
+        }
+
+        try self.expectAdvance(.Rparen, "Expecting a right parentheses for closing function parameters");
+
+        if (self.match(.Own)) { 
+            try self.addIR(.BuiltinType, self.peekThenAdvance(), 0);
+        } else {
+            try self.typeRule();
+        }
+
+        try self.addIR(.FitMethodType, tok, self.currentIrIndex() - method_end_index);
+    }
+
     fn fitType(self: *Parser) ParseError!void {
         const end_index = self.currentIrIndex();
         const fit = self.peekThenAdvance();
@@ -228,20 +277,7 @@ pub const Parser = struct {
             const id = self.peekThenAdvance();
 
             if (self.match(.Lparen)) {
-                const method_end_index = self.currentIrIndex();
-                const tok = self.curr();
-
-                if (def) |d| {
-                    if (self.errors) |*err| try err.warnRedundantToken(
-                        d.pos,
-                        "The attribute that belongs to this def is a method, always a 'def'",
-                    );
-                }
-
-                try self.funParamType();
-                try self.typeRule();
-
-                try self.addIR(.FitMethodType, tok, self.currentIrIndex() - method_end_index);
+                try self.methodType();
             } else {
                 try self.typeRule();
             }
