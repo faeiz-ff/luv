@@ -289,6 +289,11 @@ pub const Lexer = struct {
                 isFloat = true;
                 self.char_index += 1;
                 ch = self.peek(0) orelse break;
+                if (!isNumeric(ch)) {
+                    self.char_index -= 1;
+                    isFloat = false;
+                    break;
+                }
                 if (!isNumeric(ch)) return self.reportErrorUnexpected("Numeric Value");
             } else if (!isExp and (ch == 'e' or ch == 'E')) {
                 isFloat = true;

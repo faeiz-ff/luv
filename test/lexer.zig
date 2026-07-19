@@ -1,6 +1,43 @@
 const std = @import("std");
 const luv = @import("luv");
 
+test "Tuple index postfix" {
+    const t = std.testing;
+    const code =
+        \\t.1.pop()
+    ;
+
+    var writer = std.Io.Writer.Allocating.init(t.allocator);
+    defer writer.deinit();
+
+    var l: luv.Lexer = .empty;
+    l.assignErr(&writer.writer);
+    l.code = code; // For test only
+
+    var tok: luv.Token = undefined;
+
+    tok = try l.scanToken();
+    try t.expectEqual(.Identifier, tok.tt);
+
+    tok = try l.scanToken();
+    try t.expectEqual(.Dot, tok.tt);
+
+    tok = try l.scanToken();
+    try t.expectEqual(.IntLiteral, tok.tt);
+
+    tok = try l.scanToken();
+    try t.expectEqual(.Dot, tok.tt);
+
+    tok = try l.scanToken();
+    try t.expectEqual(.Identifier, tok.tt);
+
+    tok = try l.scanToken();
+    try t.expectEqual(.Lparen, tok.tt);
+
+    tok = try l.scanToken();
+    try t.expectEqual(.Rparen, tok.tt);
+}
+
 test "Error Recovery" {
     const t = std.testing;
     const code =

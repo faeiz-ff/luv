@@ -495,7 +495,7 @@ pub const Parser = struct {
             .Lparen => try self.tupleExpr(),
             .Lbrace => try self.objExpr(),
             else => {
-                if (self.errors) |*err| try err.errorExpectedSomeRule(tok.pos, "Dot PostFix");
+                if (self.errors) |*err| try err.errorExpectedSomeRule(tok.pos, "DotPostFix");
                 return error.BadSyntax;
             },
         }
