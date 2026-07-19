@@ -1142,6 +1142,11 @@ pub const Parser = struct {
         const end_index = self.currentIrIndex();
         try self.expression();
 
+        if (!self.match(.Rbrace)) {
+            if (self.errors) |*err| try err.errorUnreachableReturn(tok.pos, self.curr().pos);
+            return error.BadSyntax;
+        }
+
         try self.addIR(
             switch (tok.tt) {
                 .Return => .ReturnStmt,

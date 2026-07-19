@@ -72,5 +72,13 @@ pub const ParserErrorReport = struct {
             .report(.Err, "Invalid Syntax")
             .withLineMsg(self.code, pos, "Tuple destructure is not allowed in " ++ in)
             .flush();
-    } 
+    }
+
+    pub fn errorUnreachableReturn(self: *Self, ret_pos: luv.Position, pos: luv.Position) !void {
+        try self.reporter
+            .report(.Err, "Unreachable Code")
+            .withLineMsg(self.code, pos, "Returning statement must be followed by closing curly bracket")
+            .withLineMsg(self.code, ret_pos, "Returning statement must be the last statement in a block")
+            .flush();
+    }
 };
