@@ -81,4 +81,11 @@ pub const ParserErrorReport = struct {
             .withLineMsg(self.code, ret_pos, "Returning statement must be the last statement in a block")
             .flush();
     }
+
+    pub fn errorModDeclNotOnTop(self: *Self, pos: luv.Position) !void {
+        try self.reporter
+            .report(.Err, "Module Declaration not on top")
+            .withLineMsg(self.code, pos, "This module declaration must be the on top of the file")
+            .flush();
+    }
 };

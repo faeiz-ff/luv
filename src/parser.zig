@@ -1228,6 +1228,45 @@ pub const Parser = struct {
         _ = self.matchThenAdvance(.Semicolon);
     }
 
+    fn modDecl(self: *Parser) ParseError!void {
+        const tok = self.peekThenAdvance();
+        if (self.currentIrIndex() != 0) {
+            if (self.errors) |*err| try err.errorModDeclNotOnTop(tok.pos);
+            return error.BadSyntax;
+        }
+        try self.expect(.Identifier, "Expecting identifier for module name");
+        try self.addIR(.Identifier, self.peekThenAdvance(), 0);
+        try self.addIR(.ModDecl, tok, 1);
+    }
+
+    fn useStmt(self: *Parser) ParseError!void {
+        const end_index = self.currentIrIndex();
+        const use = self.peekThenAdvance();
+
+        // Ensure any ID is consumed
+        const caret = if (self.match(.Caret)) blk: {
+            const caret = self.peekThenAdvance();
+
+            try self.expect(.Identifier, "Expecting identifier after export mark");
+            try self.addIR(.Identifier, self.peekThenAdvance(), 0);
+
+            break :blk caret;
+        } else blk: {
+            if (self.match(.Identifier)) {
+                try self.addIR(.Identifier, self.peekThenAdvance(), 0);
+            }
+            break :blk null;
+        };
+
+        if (self.match(.StringLiteral)) {
+            try self.addIR(.StringLiteral, self.peekThenAdvance(), 0);
+        }
+
+        try self.addIR(.UseDecl, use, self.currentIrIndex() - end_index);
+
+        if (caret) |tok| try self.addIR(.ExportDecorator, tok, self.currentIrIndex() - end_index);
+    }
+
     fn topLevelStatement(self: *Parser) ParseError!void {
         const tok = self.curr();
         switch (tok.tt) {
@@ -1238,8 +1277,8 @@ pub const Parser = struct {
                 "Redundant semicolon on an empty statement",
             ),
             .Fun => try self.topLevelFun(),
-
-            // TODO useStmt
+            .Mod => try self.modDecl(),
+            .Use => try self.useStmt(),
             else => {
                 if (self.errors) |*err| try err.errorExpectedSomeRule(tok.pos, "Top Level Statement");
                 return error.BadSyntax;

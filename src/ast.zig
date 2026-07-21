@@ -183,6 +183,12 @@ pub const IRType = enum {
     /// follows te rule of:
     /// (destructure 'of')? ID (Yield|BlockStmt)
     MatchTagArm,
+    /// Stores mod token
+    /// Unary, always have one child
+    ModDecl,
+    /// Stores use token
+    /// Has one or two child: ID or StringLiteral or both
+    UseDecl,
 };
 
 /// Luv Intermediate Representation to store in an array.

@@ -22,10 +22,10 @@ use file1
 def hiddenNumber = file1.importantNumber + 1
 ```
 
-`use` can alias a module name (only inside the same folder) if needed.
+`use` can alias a module name.
 
 ```luv
-use importedFile = "1"
+use importedFile "1"
 ```
 
 ## Multi-file module
@@ -51,40 +51,37 @@ def b = a + 10
 
 ## Subfolder Module
 
-A Subfolder by default will have public access with their own, unless they have a same-name-module-file inside it.
-This file controls the interface of the subfolder. It can reexport module names or even cherry pick names to export.
-The file must have the same name as its parent folder name, and belongs has no `mod`.
+A Subfolder have public access for all of the modules inside. A subfolder is importable, it will import all the modules inside it non-recursively.
 
 ```luv
 #inside src/utils/file1.luv
 
 def ^a = 1
 
-#inside src/utils/tool.luv
+#inside src/utils/file2.luv
 
 fun ^id[T any](t T) T { return t }
 
-#inside src/utils/utils.luv
-
-use ^file = file1
-use tool
-
-def ^funId = tool.id
-
 #inside src/main.luv
 
-use file = utils.file
-
-#inside src/build.luv
-
-use utils
-
-def a = utils.funId(1)
-
+use a "utils/file1"
+use "utils/file2" # will follow the module name File2.a
+use utils # accessible via utils.file1, utils.file1
 ```
 
-In the above case, "src/main.luv" only imports the file "src/utils/file1" and not anything else.
-And "src/build.luv" imports everything exported in "src/utils/utils.luv" including the "file" module and funId
+Name must be aliased if its not a valid `luv` identifier.
 
-a subfolder name cannot clash with another filename beside it.
+## Relative imports
 
+For outside modules, `luv` support relative imports. It will match filepath that ends with the module path.
+
+with a filesystem of
+```
+root/
+| src/
+| | main.luv
+| utils/
+| | tool.luv
+```
+
+in `main.luv` use "root/utils/tool" to access tool module. 

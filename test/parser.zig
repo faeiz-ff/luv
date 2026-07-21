@@ -42,7 +42,7 @@ inline fn debug_expectParseArray(
 }
 
 test "postfix tuple" {
-    const code = 
+    const code =
         \\ code.(1)
     ;
 
@@ -54,6 +54,41 @@ test "postfix tuple" {
     };
 
     try debug_expectParseArray(code, expecteds, .Expr);
+}
+
+test "use decl" {
+    const code =
+        \\ use a
+        \\ use ^b
+        \\ use "c"
+        \\ use d "e"
+        \\ use ^f "g"
+    ;
+
+    const expecteds = .{
+        .{ .Identifier, 1, 0 },
+        .{ .UseDecl, 0, 1 },
+
+        .{ .Identifier, 4, 0 },
+        .{ .UseDecl, 2, 1 },
+        .{ .ExportDecorator, 3, 2 },
+
+        .{ .StringLiteral, 6, 0 },
+        .{ .UseDecl, 5, 1 },
+
+        .{ .Identifier, 8, 0 },
+        .{ .StringLiteral, 9, 0 },
+        .{ .UseDecl, 7, 2 },
+
+        .{ .Identifier, 12, 0 },
+        .{ .StringLiteral, 13, 0 },
+        .{ .UseDecl, 10, 2 },
+        .{ .ExportDecorator, 11, 3 },
+
+        .{ .LuvProgram, 14, 14 },
+    };
+
+    try debug_expectParseArray(code, expecteds, .FullProgram);
 }
 
 test "match expr" {

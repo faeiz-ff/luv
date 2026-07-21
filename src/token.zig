@@ -62,6 +62,7 @@ pub const TokenType = enum {
     Var,
     Fun,
     Use,
+    Mod,
 
     Nom,
     Typ,
