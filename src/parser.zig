@@ -474,7 +474,7 @@ pub const Parser = struct {
                 self.advance();
                 try self.addIR(.BooleanLiteral, tok, 0);
             },
-            .Int, .Str, .Bol, .Flo, .Nil => {
+            .Int, .Str, .Bol, .Flo, .Nil, .Sym => {
                 self.advance();
                 try self.addIR(.BuiltinType, tok, 0);
             },
@@ -950,7 +950,6 @@ pub const Parser = struct {
         const end_index = self.currentIrIndex();
         const def = self.peekThenAdvance();
 
-        // TODO def test
         const caret = if (self.match(.Caret)) self.peekThenAdvance() else null;
 
         try self.expect(.Identifier, "Expecting identifier after 'def' for top level def statement");
@@ -1075,7 +1074,6 @@ pub const Parser = struct {
         const end_index = self.currentIrIndex();
         const fun = self.peekThenAdvance();
 
-        // TODO fun test
         const caret = if (self.match(.Caret)) self.peekThenAdvance() else null;
 
         try self.expect(.Identifier, "Expecting an identifier for top level function declaration");

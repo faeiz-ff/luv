@@ -5,12 +5,14 @@ program: topLevelStmt* EOF;
 
 topLevelStmt
     : ( typStmt
+      | modStmt
       | useStmt
       | defTopStmt
       | funStmt 
       ) ';'?
     ;
 
+modStmt: 'mod' ID;
 useStmt: 'use' ('^'? ID | STRING_LITERAL | '^'? ID STRING_LITERAL) ;
 
 tagType: 'tag' '{' (ID typeRule ','?)+ '}';
@@ -129,7 +131,7 @@ postFixExpr: primaryExpr ( dotSuffix | genericFulfill | callSuffix | '?' | '!' )
 primaryExpr
     : literal
     | ID
-    | 'int' | 'flo' | 'str' | 'bol'
+    | 'int' | 'flo' | 'str' | 'bol' | 'sym'
     | '(' expr ')'
     ;
 
